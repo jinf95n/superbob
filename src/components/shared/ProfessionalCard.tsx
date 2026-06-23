@@ -19,7 +19,7 @@ export function ProfessionalCard({ professional }: ProfessionalCardProps) {
   return (
     <Link
       href={`/p/${professional.slug}`}
-      className="flex flex-col gap-3 rounded-lg border border-neutral-200 p-4 transition hover:border-neutral-400"
+      className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
     >
       <div className="flex items-center gap-3">
         {professional.avatarUrl ? (
@@ -27,21 +27,21 @@ export function ProfessionalCard({ professional }: ProfessionalCardProps) {
           <img
             src={professional.avatarUrl}
             alt={professional.fullName}
-            className="h-12 w-12 rounded-full object-cover"
+            className="h-16 w-16 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-neutral-200 text-sm font-medium text-neutral-600">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sb-card-blue text-xl font-semibold text-sb-blue">
             {professional.fullName.charAt(0).toUpperCase()}
           </div>
         )}
 
         <div>
-          <p className="flex items-center gap-1 font-medium">
+          <p className="font-display flex items-center gap-1 text-[18px] font-semibold text-sb-text">
             {professional.fullName}
             {professional.isVerified && (
               <span
                 title="Profesional verificado"
-                className="text-blue-600"
+                className="text-sb-success"
                 aria-label="Verificado"
               >
                 ✓
@@ -49,9 +49,9 @@ export function ProfessionalCard({ professional }: ProfessionalCardProps) {
             )}
           </p>
           {professional.primaryTrade && (
-            <p className="text-sm text-neutral-600">
+            <span className="mt-1 inline-block rounded-full bg-sb-card-orange px-3 py-0.5 text-[13px] font-medium text-sb-orange">
               {professional.primaryTrade.name}
-            </p>
+            </span>
           )}
         </div>
       </div>
@@ -62,7 +62,7 @@ export function ProfessionalCard({ professional }: ProfessionalCardProps) {
       />
 
       {professional.bio && (
-        <p className="line-clamp-2 text-sm text-neutral-600">
+        <p className="line-clamp-2 text-sm text-sb-muted">
           {professional.bio}
         </p>
       )}
@@ -72,18 +72,22 @@ export function ProfessionalCard({ professional }: ProfessionalCardProps) {
           {visibleDepartments.map((department) => (
             <span
               key={department.slug}
-              className="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700"
+              className="rounded-full bg-sb-card-blue px-2.5 py-0.5 text-xs font-medium text-sb-blue"
             >
               {department.name}
             </span>
           ))}
           {extraDepartmentCount > 0 && (
-            <span className="rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">
+            <span className="rounded-full bg-sb-card-blue px-2.5 py-0.5 text-xs font-medium text-sb-blue">
               +{extraDepartmentCount}
             </span>
           )}
         </div>
       )}
+
+      <span className="mt-1 flex h-11 w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white">
+        Ver perfil
+      </span>
     </Link>
   );
 }

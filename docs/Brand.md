@@ -193,3 +193,17 @@ Cuando el logo esté listo, vivirá en `public/logo.svg` e `public/logo-white.sv
 - Bordes: 1px sólido, color `#E2E2DF` en claro / `#2E2E2C` en oscuro
 - Corner radius base: 8px (componentes), 12px (cards)
 - Sombras: ninguna en Fase 1. Flat design.
+
+## Dirección visual
+
+Referencia principal: YoMeAnimo.com — fondo blanco, tipografía 
+pesada y colorida, secciones con color de fondo vibrante, 
+sensación cálida y cercana.
+
+- Secciones alternadas: fondo blanco y fondo sb-blue suave (#EEF4FD)
+- Headings grandes, DM Sans 800 donde sea posible
+- Cards con color de fondo, nunca blanco sobre blanco
+- Emojis permitidos como iconos en la home y categorías
+- Botones grandes, redondeados, con color fuerte
+- Nada de grises apagados como protagonistas
+- Energía visual alta, sin ser ruidoso

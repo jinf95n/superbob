@@ -11,6 +11,9 @@ type PhoneRevealProps = {
   source: ContactEventSource;
 };
 
+const BAR_CLASSES =
+  "fixed bottom-16 left-0 right-0 z-20 flex h-14 w-full items-center justify-center rounded-none text-[16px] font-medium sm:static sm:bottom-auto sm:left-auto sm:right-auto sm:h-11 sm:w-auto sm:rounded-full sm:px-6";
+
 export function PhoneReveal({ professionalId, source }: PhoneRevealProps) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
@@ -19,12 +22,16 @@ export function PhoneReveal({ professionalId, source }: PhoneRevealProps) {
   const [isRevealing, startReveal] = useTransition();
 
   if (isPending) {
-    return <p className="text-sm text-neutral-500">Cargando...</p>;
+    return (
+      <div className={`${BAR_CLASSES} bg-sb-card-blue text-sb-muted`}>
+        Cargando...
+      </div>
+    );
   }
 
   if (phone) {
     return (
-      <a href={`tel:${phone}`} className="font-medium text-blue-600">
+      <a href={`tel:${phone}`} className={`${BAR_CLASSES} bg-sb-blue text-white`}>
         {phone}
       </a>
     );
@@ -49,16 +56,20 @@ export function PhoneReveal({ professionalId, source }: PhoneRevealProps) {
   };
 
   return (
-    <div>
+    <>
       <button
         type="button"
         onClick={handleClick}
         disabled={isRevealing}
-        className="rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
+        className={`${BAR_CLASSES} bg-sb-blue text-white disabled:opacity-50`}
       >
         {isRevealing ? "Cargando..." : "Ver teléfono"}
       </button>
-      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-    </div>
+      {error && (
+        <p className="fixed bottom-32 left-0 right-0 px-4 text-center text-sm text-sb-error sm:static sm:bottom-auto sm:mt-1">
+          {error}
+        </p>
+      )}
+    </>
   );
 }

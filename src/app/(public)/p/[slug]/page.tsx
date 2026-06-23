@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { getProfessionalBySlug } from "@/modules/professionals/queries";
-import { StarRating } from "@/components/shared/StarRating";
 import { PhoneReveal } from "@/components/shared/PhoneReveal";
 
 type ProfessionalPublicProfilePageProps = {
@@ -23,91 +22,103 @@ export default async function ProfessionalPublicProfilePage({
   }
 
   const primaryTrade = professional.trades.find((trade) => trade.isPrimary);
-  const secondaryTrades = professional.trades.filter(
-    (trade) => !trade.isPrimary,
+  const overallScores = professional.trades.filter(
+    (trade) => trade.score !== null,
+  );
+  const overallScore =
+    overallScores.length > 0
+      ? overallScores.reduce((sum, trade) => sum + (trade.score ?? 0), 0) /
+        overallScores.length
+      : null;
+  const totalReviewCount = professional.trades.reduce(
+    (sum, trade) => sum + trade.reviewCount,
+    0,
   );
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <div className="flex items-center gap-4">
+    <main className="mx-auto max-w-2xl px-4 py-8 pb-32 sm:pb-12">
+      <div className="flex flex-col items-center text-center">
         {professional.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={professional.avatarUrl}
             alt={professional.fullName}
-            className="h-20 w-20 rounded-full object-cover"
+            className="h-24 w-24 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-neutral-200 text-2xl font-medium text-neutral-600">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-sb-card-blue text-3xl font-semibold text-sb-blue">
             {professional.fullName.charAt(0).toUpperCase()}
           </div>
         )}
 
-        <div>
-          <h1 className="flex items-center gap-1 text-2xl font-bold">
-            {professional.fullName}
-            {professional.isVerified && (
-              <span
-                title="Profesional verificado"
-                className="text-blue-600"
-                aria-label="Verificado"
-              >
-                ✓
-              </span>
-            )}
-          </h1>
-          {primaryTrade && (
-            <p className="text-neutral-600">{primaryTrade.name}</p>
-          )}
-        </div>
+        <h1 className="font-display mt-4 text-[28px] font-extrabold text-sb-text">
+          {professional.fullName}
+        </h1>
+
+        {primaryTrade && (
+          <p className="mt-1 text-[16px] text-sb-muted">{primaryTrade.name}</p>
+        )}
+
+        {professional.isVerified && (
+          <span className="mt-2 inline-flex items-center rounded-full bg-[#E8F8EE] px-3 py-1 text-sm font-medium text-sb-success">
+            Verificado ✓
+          </span>
+        )}
+
+        {overallScore !== null && (
+          <div className="mt-4 flex items-center gap-2">
+            <span className="font-display text-[32px] font-bold text-sb-text">
+              {overallScore.toFixed(1)}
+            </span>
+            <span aria-hidden="true" className="text-2xl text-sb-orange">
+              {"★".repeat(Math.round(overallScore))}
+              {"☆".repeat(5 - Math.round(overallScore))}
+            </span>
+            <span className="text-sm text-sb-muted">
+              ({totalReviewCount} reseña{totalReviewCount === 1 ? "" : "s"})
+            </span>
+          </div>
+        )}
+
+        {professional.bio && (
+          <p className="mt-4 text-[16px] leading-relaxed text-sb-text">
+            {professional.bio}
+          </p>
+        )}
       </div>
 
-      {professional.bio && (
-        <p className="mt-4 text-neutral-700">{professional.bio}</p>
-      )}
-
-      <section className="mt-6">
-        <h2 className="font-semibold">Oficios</h2>
-        <ul className="mt-2 space-y-2">
+      <section className="mt-8">
+        <h2 className="font-display text-[18px] font-semibold text-sb-text">
+          Oficios
+        </h2>
+        <div className="mt-3 flex flex-wrap gap-2">
           {professional.trades.map((trade) => (
-            <li
+            <span
               key={trade.slug}
-              className="flex items-center justify-between rounded border border-neutral-200 p-3"
+              className="rounded-full bg-sb-card-orange px-4 py-1.5 text-sm font-medium text-sb-orange"
             >
-              <div>
-                <p className="font-medium">
-                  {trade.name}
-                  {trade.isPrimary && (
-                    <span className="ml-2 rounded bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600">
-                      Principal
-                    </span>
-                  )}
-                </p>
-                {trade.yearsExperience !== null && (
-                  <p className="text-sm text-neutral-500">
-                    {trade.yearsExperience} años de experiencia
-                  </p>
-                )}
-              </div>
-              <StarRating score={trade.score} reviewCount={trade.reviewCount} />
-            </li>
+              {trade.name}
+              {trade.isPrimary ? " · Principal" : ""}
+            </span>
           ))}
-        </ul>
-        {secondaryTrades.length === 0 && professional.trades.length === 0 && (
-          <p className="mt-2 text-sm text-neutral-500">
+        </div>
+        {professional.trades.length === 0 && (
+          <p className="mt-2 text-sm text-sb-muted">
             Todavía no agregó oficios.
           </p>
         )}
       </section>
 
       {professional.departments.length > 0 && (
-        <section className="mt-6">
-          <h2 className="font-semibold">Zonas de cobertura</h2>
-          <div className="mt-2 flex flex-wrap gap-2">
+        <section className="mt-8">
+          <h2 className="font-display text-[18px] font-semibold text-sb-text">
+            Zonas de cobertura
+          </h2>
+          <div className="mt-3 flex flex-wrap gap-2">
             {professional.departments.map((department) => (
               <span
                 key={department.slug}
-                className="rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700"
+                className="rounded-full bg-sb-card-blue px-4 py-1.5 text-sm font-medium text-sb-blue"
               >
                 {department.name}
               </span>
@@ -116,55 +127,60 @@ export default async function ProfessionalPublicProfilePage({
         </section>
       )}
 
-      <section className="mt-6">
-        <h2 className="font-semibold">Contacto</h2>
-        <div className="mt-2">
-          <PhoneReveal professionalId={professional.id} source="profile" />
-        </div>
-      </section>
-
       {professional.photos.length > 0 && (
-        <section className="mt-6">
-          <h2 className="font-semibold">Trabajos realizados</h2>
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <section className="mt-8">
+          <h2 className="font-display text-[18px] font-semibold text-sb-text">
+            Trabajos realizados
+          </h2>
+          <div className="mt-3 grid grid-cols-2 gap-3">
             {professional.photos.map((photo) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={photo.id}
                 src={photo.thumbnailUrl ?? photo.url}
                 alt={photo.caption ?? professional.fullName}
-                className="aspect-square w-full rounded object-cover"
+                className="aspect-square w-full rounded-2xl object-cover"
               />
             ))}
           </div>
         </section>
       )}
 
-      <section className="mt-6">
-        <h2 className="font-semibold">Reseñas</h2>
+      <section className="mt-8">
+        <h2 className="font-display text-[18px] font-semibold text-sb-text">
+          Reseñas
+        </h2>
         {professional.reviews.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-2 text-sm text-sb-muted">
             Todavía no tiene reseñas publicadas.
           </p>
         ) : (
-          <ul className="mt-2 space-y-3">
+          <ul className="mt-3 flex flex-col gap-3">
             {professional.reviews.map((review) => (
               <li
                 key={review.id}
-                className="rounded border border-neutral-200 p-3"
+                className="rounded-2xl bg-white p-4 shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
               >
-                <div className="flex items-center justify-between">
-                  <p className="font-medium">{review.reviewerName}</p>
-                  <span aria-hidden="true" className="text-amber-500">
-                    {"★".repeat(review.rating)}
-                    {"☆".repeat(5 - review.rating)}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sb-card-blue text-sm font-semibold text-sb-blue">
+                    {review.reviewerName.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="font-display text-[15px] font-semibold text-sb-text">
+                      {review.reviewerName}
+                    </p>
+                    <p className="text-xs text-sb-muted">
+                      {review.publishedAt.toLocaleDateString("es-AR")} ·{" "}
+                      {review.tradeName} · {REVIEW_TYPE_LABEL[review.type]}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-neutral-500">
-                  {review.tradeName} · {REVIEW_TYPE_LABEL[review.type]}
-                </p>
+                <span aria-hidden="true" className="mt-2 inline-block text-sb-orange">
+                  {"★".repeat(review.rating)}
+                  {"☆".repeat(5 - review.rating)}
+                </span>
                 {review.comment && (
-                  <p className="mt-1 text-sm text-neutral-700">
+                  <p className="mt-1 text-sm leading-relaxed text-sb-text">
                     {review.comment}
                   </p>
                 )}
@@ -173,6 +189,8 @@ export default async function ProfessionalPublicProfilePage({
           </ul>
         )}
       </section>
+
+      <PhoneReveal professionalId={professional.id} source="profile" />
     </main>
   );
 }

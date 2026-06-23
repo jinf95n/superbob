@@ -15,6 +15,10 @@
   --sb-muted: #5a5a58;
   --sb-border: #e2e2df;
 
+  --sb-section-alt: #eef4fd;
+  --sb-card-blue: #eef4fd;
+  --sb-card-orange: #fef3e8;
+
   --background: var(--sb-bg);
   --foreground: var(--sb-text);
 }
