@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { Header } from "@/components/layout/Header";
+import { BottomNav } from "@/components/layout/BottomNav";
 
 export default async function AppLayout({
   children,
@@ -13,5 +15,11 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <Header />
+      <div className="pb-16 sm:pb-0">{children}</div>
+      <BottomNav />
+    </>
+  );
 }

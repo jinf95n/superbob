@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, DM_Sans } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const dmSans = DM_Sans({
   subsets: ["latin"],
+  variable: "--font-dm-sans",
+  weight: ["600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "SUPERBOB",
-  description: "Encontrá profesionales recomendados en tu zona.",
+  description: "Profesionales recomendados en tu zona.",
   manifest: "/manifest.json",
 };
 
@@ -25,9 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${inter.variable} ${dmSans.variable} antialiased`}>
         {children}
       </body>
     </html>

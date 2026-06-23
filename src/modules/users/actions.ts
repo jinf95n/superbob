@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { APIError } from "better-auth/api";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import {
   AuthActionState,
   LoginSchema,
@@ -144,4 +146,63 @@ export async function loginAction(
   }
 
   redirect("/dashboard");
+}
+
+const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+export type UploadAvatarActionState = {
+  error?: string;
+  avatarUrl?: string;
+};
+
+export async function uploadAvatarAction(
+  formData: FormData,
+): Promise<UploadAvatarActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  const file = formData.get("avatar");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Seleccioná una imagen" };
+  }
+
+  const extension = ALLOWED_AVATAR_TYPES[file.type];
+  if (!extension) {
+    return { error: "Formato no soportado. Usá JPG, PNG o WEBP" };
+  }
+
+  if (file.size > MAX_AVATAR_SIZE_BYTES) {
+    return { error: "La imagen no puede superar los 5MB" };
+  }
+
+  const path = `${session.user.id}/${Date.now()}.${extension}`;
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from("avatars")
+    .upload(path, await file.arrayBuffer(), {
+      contentType: file.type,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    return { error: "No pudimos subir la imagen, intentá de nuevo" };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabaseAdmin.storage.from("avatars").getPublicUrl(path);
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { avatarUrl: publicUrl },
+  });
+
+  return { avatarUrl: publicUrl };
 }

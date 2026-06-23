@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Role } from "@prisma/client";
 
 export const RegisterSchema = z.object({
   fullName: z.string().min(2, "Ingresá tu nombre completo"),
@@ -31,4 +32,39 @@ export type AuthActionState = {
 export type PhoneOtpActionState = {
   error?: string;
   success?: boolean;
+};
+
+const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
+
+export const AdminUserListParamsSchema = z.object({
+  provinceId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  departmentId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  registeredFrom: z.preprocess(
+    emptyToUndefined,
+    z.coerce.date().optional(),
+  ),
+  registeredTo: z.preprocess(emptyToUndefined, z.coerce.date().optional()),
+  page: z.coerce.number().int().min(1).catch(1),
+});
+
+export type AdminUserListParams = z.infer<typeof AdminUserListParamsSchema>;
+
+export type AdminUserListItem = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  role: Role;
+  isActive: boolean;
+  createdAt: Date;
+  provinceName: string | null;
+  departmentName: string | null;
+};
+
+export type AdminUserListResult = {
+  users: AdminUserListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };

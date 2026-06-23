@@ -420,6 +420,8 @@ work_review tiene peso 100% y contact_review tiene peso 30%. El score visible de
 
 14. **Tipografía por función:** DM Sans para headings (`font-display`), Inter para todo el resto (`font-sans`). Ambas configuradas en el root layout y en `tailwind.config.ts`.
 
+15. Migraciones en Supabase: nunca usar --shadow-database-url apuntando a la base real. Para generar SQL de migraciones usar prisma migrate diff --from-migrations --to-schema-datamodel y aplicar con psql o el SQL editor de Supabase directamente.
+
 ---
 
 ## Lo que NO existe en Fase 1

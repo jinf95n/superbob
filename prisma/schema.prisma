@@ -16,6 +16,11 @@ datasource db {
 
 // ---------- Usuarios y roles ----------
 
+enum Role {
+  user
+  admin
+}
+
 model User {
   id                  String    @id @default(uuid())
   email               String    @unique
@@ -30,9 +35,17 @@ model User {
   fullName            String    @map("full_name")
   avatarUrl           String?   @map("avatar_url")
   isActive            Boolean   @default(true) @map("is_active")
+  role                Role      @default(user)
+  // Ubicación declarada del usuario (sin UI todavía para completarla; usada
+  // por los filtros del panel admin). Distinta de las zonas de cobertura
+  // de un profesional.
+  provinceId          String?   @map("province_id")
+  departmentId        String?   @map("department_id")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
+  province            Province?            @relation(fields: [provinceId], references: [id])
+  department          Department?          @relation(fields: [departmentId], references: [id])
   professionalProfile ProfessionalProfile?
   workRecords         WorkRecord[]
   reviewsWritten      Review[]             @relation("ReviewWriter")
@@ -99,6 +112,9 @@ model Verification {
 model ProfessionalProfile {
   id                     String    @id @default(uuid())
   userId                 String    @unique @map("user_id")
+  // Generado al crear el perfil: nombre-slugificado + 4 caracteres random (ej: juan-perez-a3k2).
+  // No editable por el profesional; usado en la URL pública /p/[slug] y en el QR.
+  slug                   String    @unique
   bio                    String?
   contactPhone           String?   @map("contact_phone")
   contactPhoneVerifiedAt DateTime? @map("contact_phone_verified_at")
@@ -177,6 +193,7 @@ model Province {
   slug     String @unique
 
   departments Department[]
+  users       User[]
 
   @@map("provinces")
 }
@@ -191,6 +208,7 @@ model Department {
   province      Province                   @relation(fields: [provinceId], references: [id])
   localities    Locality[]
   coverageAreas ProfessionalCoverageArea[]
+  users         User[]
 
   @@map("departments")
 }

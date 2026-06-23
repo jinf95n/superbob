@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -56,3 +57,27 @@ export const auth = betterAuth({
     nextCookies(),
   ],
 });
+
+export type AdminSessionResult = { userId: string } | { error: string };
+
+/**
+ * Verifica sesión + rol admin. Para usar al inicio de Server Actions del
+ * panel admin (regla #3 de CLAUDE.md: verificar sesión antes de mutar).
+ */
+export async function requireAdminSession(): Promise<AdminSessionResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true },
+  });
+
+  if (user?.role !== "admin") {
+    return { error: "No tenés permisos de administrador" };
+  }
+
+  return { userId: session.user.id };
+}
