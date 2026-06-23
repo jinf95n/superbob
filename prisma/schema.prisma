@@ -1,0 +1,412 @@
+// Refleja docs/Shema.md v1.0 (Fase 1 — Directorio de Confianza).
+//
+// Constraints que Prisma no puede declarar en este archivo y deben agregarse
+// como SQL crudo en la migración generada (ver CLAUDE.md "Constraints críticos"):
+// - Índice parcial único: CREATE UNIQUE INDEX ON professional_trades(professional_id) WHERE is_primary = true
+// - CHECK (rating BETWEEN 1 AND 5) en reviews.rating y client_ratings.rating
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Usuarios y roles ----------
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  emailVerified       Boolean   @default(false) @map("email_verified")
+  // Nullable hasta el paso de verificación de teléfono (fuera de este alcance):
+  // Better Auth crea el usuario con email/password o Google sin teléfono.
+  phone               String?   @unique
+  phoneVerifiedAt     DateTime? @map("phone_verified_at")
+  // Bookkeeping interno del plugin phoneNumber de Better Auth (no usar para lógica
+  // de negocio: la fuente de verdad de la app sigue siendo phoneVerifiedAt).
+  phoneNumberVerified Boolean   @default(false) @map("phone_number_verified")
+  fullName            String    @map("full_name")
+  avatarUrl           String?   @map("avatar_url")
+  isActive            Boolean   @default(true) @map("is_active")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  professionalProfile ProfessionalProfile?
+  workRecords         WorkRecord[]
+  reviewsWritten      Review[]             @relation("ReviewWriter")
+  clientRatings       ClientRating[]
+  contactEvents       ContactEvent[]
+  whatsappMessages    WhatsappMessage[]
+  notifications       Notification[]
+  reportsFiled        Report[]             @relation("ReportFiler")
+  reportsReceived     Report[]             @relation("ReportedUser")
+  sessions            Session[]
+  accounts            Account[]
+
+  @@map("users")
+}
+
+// ---------- Tablas requeridas por Better Auth ----------
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  token     String   @unique
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  userId                String    @map("user_id")
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime  @map("expires_at")
+  createdAt  DateTime? @default(now()) @map("created_at")
+  updatedAt  DateTime? @updatedAt @map("updated_at")
+
+  @@map("verifications")
+}
+
+model ProfessionalProfile {
+  id                     String    @id @default(uuid())
+  userId                 String    @unique @map("user_id")
+  bio                    String?
+  contactPhone           String?   @map("contact_phone")
+  contactPhoneVerifiedAt DateTime? @map("contact_phone_verified_at")
+  isActive               Boolean   @default(true) @map("is_active")
+  isVerified             Boolean   @default(false) @map("is_verified")
+  qrCodeUrl              String?   @map("qr_code_url")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+
+  user               User                       @relation(fields: [userId], references: [id])
+  professionalTrades ProfessionalTrade[]
+  coverageAreas      ProfessionalCoverageArea[]
+  workRecords        WorkRecord[]
+  reviewsReceived    Review[]                   @relation("ReviewedProfessional")
+  clientRatingsGiven ClientRating[]
+  contactEvents      ContactEvent[]
+  workPhotos         WorkPhoto[]
+  whatsappMessages   WhatsappMessage[]
+  reportsReceived    Report[]
+
+  @@map("professional_profiles")
+}
+
+// ---------- Oficios ----------
+
+model TradeCategory {
+  id    String  @id @default(uuid())
+  name  String
+  icon  String?
+  order Int?
+
+  trades Trade[]
+
+  @@map("trade_categories")
+}
+
+model Trade {
+  id         String  @id @default(uuid())
+  categoryId String  @map("category_id")
+  name       String
+  slug       String  @unique
+  isActive   Boolean @default(true) @map("is_active")
+  order      Int?
+
+  category           TradeCategory       @relation(fields: [categoryId], references: [id])
+  professionalTrades ProfessionalTrade[]
+  reviews            Review[]
+  workRecords        WorkRecord[]
+  workPhotos         WorkPhoto[]
+
+  @@map("trades")
+}
+
+model ProfessionalTrade {
+  id              String   @id @default(uuid())
+  professionalId  String   @map("professional_id")
+  tradeId         String   @map("trade_id")
+  isPrimary       Boolean  @default(false) @map("is_primary")
+  yearsExperience Int?     @map("years_experience")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  professional ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  trade        Trade               @relation(fields: [tradeId], references: [id])
+
+  // Único oficio primario por profesional: ver índice parcial en la migración SQL.
+  @@index([tradeId])
+  @@map("professional_trades")
+}
+
+// ---------- Geografía ----------
+
+model Province {
+  id       String @id @default(uuid())
+  georefId String @unique @map("georef_id")
+  name     String
+  slug     String @unique
+
+  departments Department[]
+
+  @@map("provinces")
+}
+
+model Department {
+  id         String @id @default(uuid())
+  provinceId String @map("province_id")
+  georefId   String @unique @map("georef_id")
+  name       String
+  slug       String @unique
+
+  province      Province                   @relation(fields: [provinceId], references: [id])
+  localities    Locality[]
+  coverageAreas ProfessionalCoverageArea[]
+
+  @@map("departments")
+}
+
+model Locality {
+  id           String   @id @default(uuid())
+  departmentId String   @map("department_id")
+  georefId     String   @unique @map("georef_id")
+  name         String
+  slug         String   @unique
+  latitude     Decimal? @db.Decimal(10, 8)
+  longitude    Decimal? @db.Decimal(11, 8)
+
+  department Department @relation(fields: [departmentId], references: [id])
+
+  @@map("localities")
+}
+
+model ProfessionalCoverageArea {
+  id             String   @id @default(uuid())
+  professionalId String   @map("professional_id")
+  departmentId   String   @map("department_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  professional ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  department   Department          @relation(fields: [departmentId], references: [id])
+
+  @@unique([professionalId, departmentId])
+  @@index([departmentId])
+  @@map("professional_coverage_areas")
+}
+
+// ---------- Sistema de reseñas ----------
+
+enum WorkRecordType {
+  contact
+  completed
+}
+
+model WorkRecord {
+  id                        String         @id @default(uuid())
+  professionalId            String         @map("professional_id")
+  clientId                  String         @map("client_id")
+  tradeId                   String         @map("trade_id")
+  type                      WorkRecordType
+  initiatedByProfessionalAt DateTime?      @map("initiated_by_professional_at")
+  clientNotifiedAt          DateTime?      @map("client_notified_at")
+  createdAt                 DateTime       @default(now()) @map("created_at")
+
+  professional     ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  client           User                @relation(fields: [clientId], references: [id])
+  trade            Trade               @relation(fields: [tradeId], references: [id])
+  reviews          Review[]
+  clientRatings    ClientRating[]
+  workPhotos       WorkPhoto[]
+  whatsappMessages WhatsappMessage[]
+
+  @@map("work_records")
+}
+
+enum ReviewType {
+  contact_review
+  work_review
+}
+
+model Review {
+  id                     String     @id @default(uuid())
+  workRecordId           String     @map("work_record_id")
+  reviewerId             String     @map("reviewer_id")
+  reviewedProfessionalId String     @map("reviewed_professional_id")
+  tradeId                String     @map("trade_id")
+  type                   ReviewType
+  // CHECK (rating BETWEEN 1 AND 5) — agregar en la migración SQL.
+  rating                 Int
+  comment                String?
+  submittedAt            DateTime?  @map("submitted_at")
+  publishedAt            DateTime?  @map("published_at")
+  createdAt              DateTime   @default(now()) @map("created_at")
+
+  workRecord           WorkRecord          @relation(fields: [workRecordId], references: [id])
+  reviewer             User                @relation("ReviewWriter", fields: [reviewerId], references: [id])
+  reviewedProfessional ProfessionalProfile @relation("ReviewedProfessional", fields: [reviewedProfessionalId], references: [id])
+  trade                Trade               @relation(fields: [tradeId], references: [id])
+
+  @@index([reviewedProfessionalId])
+  @@index([publishedAt])
+  @@index([tradeId])
+  @@map("reviews")
+}
+
+model ClientRating {
+  id                    String   @id @default(uuid())
+  workRecordId          String   @map("work_record_id")
+  ratedByProfessionalId String   @map("rated_by_professional_id")
+  clientId              String   @map("client_id")
+  // CHECK (rating BETWEEN 1 AND 5) — agregar en la migración SQL.
+  rating                Int
+  comment               String?
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  workRecord          WorkRecord          @relation(fields: [workRecordId], references: [id])
+  ratedByProfessional ProfessionalProfile @relation(fields: [ratedByProfessionalId], references: [id])
+  client              User                @relation(fields: [clientId], references: [id])
+
+  @@map("client_ratings")
+}
+
+// ---------- Contactos y métricas ----------
+
+enum ContactEventSource {
+  profile
+  qr_scan
+  search
+}
+
+model ContactEvent {
+  id             String              @id @default(uuid())
+  professionalId String              @map("professional_id")
+  clientId       String              @map("client_id")
+  source         ContactEventSource?
+  createdAt      DateTime            @default(now()) @map("created_at")
+
+  professional ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  client       User                @relation(fields: [clientId], references: [id])
+
+  @@index([professionalId])
+  @@index([createdAt])
+  @@map("contact_events")
+}
+
+// ---------- Fotos de trabajos ----------
+
+model WorkPhoto {
+  id             String   @id @default(uuid())
+  professionalId String   @map("professional_id")
+  tradeId        String?  @map("trade_id")
+  workRecordId   String?  @map("work_record_id")
+  url            String
+  thumbnailUrl   String?  @map("thumbnail_url")
+  caption        String?
+  order          Int?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  professional ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  trade        Trade?              @relation(fields: [tradeId], references: [id])
+  workRecord   WorkRecord?         @relation(fields: [workRecordId], references: [id])
+
+  @@map("work_photos")
+}
+
+// ---------- WhatsApp y notificaciones ----------
+
+enum WhatsappMessageType {
+  review_request
+  work_confirmation
+}
+
+enum WhatsappMessageStatus {
+  pending
+  sent
+  delivered
+  failed
+}
+
+model WhatsappMessage {
+  id             String                 @id @default(uuid())
+  professionalId String                 @map("professional_id")
+  clientId       String                 @map("client_id")
+  workRecordId   String?                @map("work_record_id")
+  type           WhatsappMessageType?
+  status         WhatsappMessageStatus?
+  sentAt         DateTime?              @map("sent_at")
+  createdAt      DateTime               @default(now()) @map("created_at")
+
+  professional ProfessionalProfile @relation(fields: [professionalId], references: [id])
+  client       User                @relation(fields: [clientId], references: [id])
+  workRecord   WorkRecord?         @relation(fields: [workRecordId], references: [id])
+
+  @@map("whatsapp_messages")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  type      String
+  payload   Json?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// ---------- Reportes ----------
+
+enum ReportStatus {
+  pending
+  reviewed
+  resolved
+}
+
+model Report {
+  id                     String       @id @default(uuid())
+  reporterId             String       @map("reporter_id")
+  reportedUserId         String       @map("reported_user_id")
+  reportedProfessionalId String?      @map("reported_professional_id")
+  reason                 String
+  description            String?
+  status                 ReportStatus @default(pending)
+  createdAt              DateTime     @default(now()) @map("created_at")
+
+  reporter             User                 @relation("ReportFiler", fields: [reporterId], references: [id])
+  reportedUser         User                 @relation("ReportedUser", fields: [reportedUserId], references: [id])
+  reportedProfessional ProfessionalProfile? @relation(fields: [reportedProfessionalId], references: [id])
+
+  @@map("reports")
+}
