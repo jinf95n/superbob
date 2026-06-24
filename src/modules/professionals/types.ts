@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ReviewType } from "@prisma/client";
+import { WorkRecordType } from "@prisma/client";
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
@@ -92,15 +92,6 @@ export type CreateProfessionalProfileActionState = {
   fieldErrors?: Record<string, string>;
 };
 
-export type ProfessionalTradeWithScore = {
-  name: string;
-  slug: string;
-  isPrimary: boolean;
-  yearsExperience: number | null;
-  score: number | null;
-  reviewCount: number;
-};
-
 export type ProfessionalPortfolioPhoto = {
   id: string;
   url: string;
@@ -108,29 +99,86 @@ export type ProfessionalPortfolioPhoto = {
   caption: string | null;
 };
 
-export type ProfessionalPublishedReview = {
+// ---------- Perfil público completo (/p/[slug]) ----------
+
+export type ProfessionalTradeForProfile = {
+  tradeId: string;
+  name: string;
+  slug: string;
+  isPrimary: boolean;
+  yearsExperience: number | null;
+  completedWorkCount: number;
+};
+
+export type ProfessionalReviewForProfile = {
   id: string;
   reviewerId: string;
-  reviewerName: string;
+  reviewerDisplayName: string;
   tradeName: string;
-  type: ReviewType;
   rating: number;
   comment: string | null;
   publishedAt: Date;
+  workRecordType: WorkRecordType;
 };
 
-export type ProfessionalProfileDetail = {
+export type ProfessionalFullProfile = {
   id: string;
   userId: string;
   slug: string;
   fullName: string;
   avatarUrl: string | null;
   bio: string | null;
+  specialties: string[];
   isVerified: boolean;
-  trades: ProfessionalTradeWithScore[];
+  qrCodeUrl: string | null;
+  createdAt: Date;
+  primaryTrade: ProfessionalTradeSummary | null;
+  primaryDepartmentName: string | null;
+  trades: ProfessionalTradeForProfile[];
   departments: ProfessionalDepartmentSummary[];
   photos: ProfessionalPortfolioPhoto[];
-  reviews: ProfessionalPublishedReview[];
+  reviews: ProfessionalReviewForProfile[];
+  weightedScore: number | null;
+  publishedReviewsCount: number;
+  ratingHistogram: Record<1 | 2 | 3 | 4 | 5, number>;
+  completedWorkRecordsCount: number;
+  satisfactionRate: number | null;
+};
+
+export type SuperbobScoreComponent = {
+  label: string;
+  value: number;
+  max: number;
+};
+
+export type SuperbobScoreBreakdown = {
+  total: number;
+  components: SuperbobScoreComponent[];
+};
+
+export type ProfessionalBadge = {
+  id: "verified" | "fast-response" | "top-department" | "frequent-clients" | "100-jobs";
+  label: string;
+};
+
+export type ProfileCompletionItem = {
+  label: string;
+  completed: boolean;
+  points: number;
+  actionHref?: string;
+};
+
+export type ProfileCompletenessLevel = "Básico" | "Completo" | "Destacado" | "Verificado";
+
+export type ProfileCompleteness = {
+  score: number;
+  level: ProfileCompletenessLevel;
+  items: ProfileCompletionItem[];
+};
+
+export type ContactMetrics = {
+  contactsThisMonth: number;
+  responseTimeLabel: string;
 };
 
 export type ProfessionalSecondaryTradeForEdit = {
