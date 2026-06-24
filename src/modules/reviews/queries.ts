@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { ReviewType } from "@prisma/client";
+import {
+  ClientRatingForProfessional,
+  PendingRatingForProfessional,
+  PendingReviewForClient,
+  PublishedReviewForProfessional,
+  WorkRecordForReviewPage,
+} from "./types";
 
 const REVIEW_TYPE_WEIGHTS: Record<ReviewType, number> = {
   work_review: 1,
@@ -170,4 +177,136 @@ export async function getPendingReviewsToRespondCount(
   const ratedWorkRecordIds = new Set(rated.map((r) => r.workRecordId));
 
   return workRecordIds.filter((id) => !ratedWorkRecordIds.has(id)).length;
+}
+
+export async function getWorkRecordForReviewPage(
+  workRecordId: string,
+): Promise<WorkRecordForReviewPage | null> {
+  const workRecord = await prisma.workRecord.findUnique({
+    where: { id: workRecordId },
+    select: {
+      id: true,
+      clientId: true,
+      createdAt: true,
+      professional: { select: { user: { select: { fullName: true } } } },
+      trade: { select: { name: true } },
+      reviews: { select: { id: true } },
+    },
+  });
+
+  if (!workRecord) {
+    return null;
+  }
+
+  return {
+    id: workRecord.id,
+    professionalName: workRecord.professional.user.fullName,
+    tradeName: workRecord.trade.name,
+    createdAt: workRecord.createdAt,
+    clientId: workRecord.clientId,
+    alreadyReviewed: workRecord.reviews.length > 0,
+  };
+}
+
+/**
+ * work_records del cliente todavía sin reseña enviada.
+ */
+export async function getPendingReviewsForClient(
+  userId: string,
+): Promise<PendingReviewForClient[]> {
+  const workRecords = await prisma.workRecord.findMany({
+    where: { clientId: userId, reviews: { none: {} } },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      type: true,
+      createdAt: true,
+      professional: {
+        select: { slug: true, user: { select: { fullName: true } } },
+      },
+      trade: { select: { name: true } },
+    },
+  });
+
+  return workRecords.map((workRecord) => ({
+    workRecordId: workRecord.id,
+    professionalName: workRecord.professional.user.fullName,
+    professionalSlug: workRecord.professional.slug,
+    tradeName: workRecord.trade.name,
+    type: workRecord.type,
+    createdAt: workRecord.createdAt,
+  }));
+}
+
+/**
+ * work_records del profesional donde todavía no calificó al cliente
+ * (ClientRating, privada).
+ */
+export async function getPendingReviewsForProfessional(
+  professionalId: string,
+): Promise<PendingRatingForProfessional[]> {
+  const workRecords = await prisma.workRecord.findMany({
+    where: {
+      professionalId,
+      clientRatings: { none: { ratedByProfessionalId: professionalId } },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      type: true,
+      createdAt: true,
+      client: { select: { fullName: true } },
+      trade: { select: { name: true } },
+    },
+  });
+
+  return workRecords.map((workRecord) => ({
+    workRecordId: workRecord.id,
+    clientName: workRecord.client.fullName,
+    tradeName: workRecord.trade.name,
+    type: workRecord.type,
+    createdAt: workRecord.createdAt,
+  }));
+}
+
+export async function getPublishedReviewsForProfessional(
+  professionalId: string,
+): Promise<PublishedReviewForProfessional[]> {
+  const reviews = await prisma.review.findMany({
+    where: { reviewedProfessionalId: professionalId, publishedAt: { not: null } },
+    orderBy: { publishedAt: "desc" },
+    select: {
+      id: true,
+      type: true,
+      rating: true,
+      comment: true,
+      publishedAt: true,
+      reviewer: { select: { fullName: true } },
+      trade: { select: { name: true } },
+    },
+  });
+
+  return reviews.map((review) => ({
+    id: review.id,
+    reviewerName: review.reviewer.fullName,
+    tradeName: review.trade.name,
+    type: review.type,
+    rating: review.rating,
+    comment: review.comment,
+    publishedAt: review.publishedAt as Date,
+  }));
+}
+
+/**
+ * Calificación privada del cliente: solo debe mostrarse al profesional que
+ * la escribió (regla del módulo reviews — nunca se expone públicamente).
+ */
+export async function getClientRatingForProfessional(
+  clientId: string,
+  professionalId: string,
+): Promise<ClientRatingForProfessional | null> {
+  return prisma.clientRating.findFirst({
+    where: { clientId, ratedByProfessionalId: professionalId },
+    select: { rating: true, comment: true, createdAt: true },
+  });
 }
