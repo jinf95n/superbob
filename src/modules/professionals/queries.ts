@@ -8,51 +8,17 @@ import {
   ProfessionalProfileDetail,
   ProfessionalSearchItem,
   ProfessionalTradeWithScore,
-  SearchProfessionalsResult,
 } from "./types";
 
-const PAGE_SIZE = 12;
-
-type SearchProfessionalsArgs = {
-  tradeSlug?: string;
-  departmentSlug?: string;
-  page?: number;
-};
-
-export async function searchProfessionals({
-  tradeSlug,
-  departmentSlug,
-  page = 1,
-}: SearchProfessionalsArgs): Promise<SearchProfessionalsResult> {
-  const [trade, department] = await Promise.all([
-    tradeSlug
-      ? prisma.trade.findUnique({
-          where: { slug: tradeSlug },
-          select: { id: true },
-        })
-      : Promise.resolve(null),
-    departmentSlug
-      ? prisma.department.findUnique({
-          where: { slug: departmentSlug },
-          select: { id: true },
-        })
-      : Promise.resolve(null),
-  ]);
-
+/**
+ * Todos los profesionales activos, sin filtrar ni paginar: el filtrado por
+ * oficio/zona se hace 100% en memoria en el cliente (ver SearchClient.tsx).
+ */
+export async function getActiveProfessionalsForSearch(): Promise<
+  ProfessionalSearchItem[]
+> {
   const matches = await prisma.professionalProfile.findMany({
-    where: {
-      isActive: true,
-      ...(trade && {
-        professionalTrades: {
-          some: { tradeId: trade.id, trade: { isActive: true } },
-        },
-      }),
-      ...(department && {
-        coverageAreas: {
-          some: { departmentId: department.id },
-        },
-      }),
-    },
+    where: { isActive: true },
     select: {
       id: true,
       slug: true,
@@ -77,7 +43,6 @@ export async function searchProfessionals({
 
   const scores = await getWeightedScores(
     matches.map((professional) => professional.id),
-    trade?.id,
   );
 
   const ranked = matches
@@ -115,14 +80,8 @@ export async function searchProfessionals({
       return b.score - a.score;
     });
 
-  const total = ranked.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.min(Math.max(page, 1), totalPages);
-  const start = (currentPage - 1) * PAGE_SIZE;
-
-  const professionals: ProfessionalSearchItem[] = ranked
-    .slice(start, start + PAGE_SIZE)
-    .map((professional) => ({
+  const professionals: ProfessionalSearchItem[] = ranked.map(
+    (professional) => ({
       id: professional.id,
       slug: professional.slug,
       fullName: professional.fullName,
@@ -134,15 +93,10 @@ export async function searchProfessionals({
       departments: professional.departments,
       score: professional.score,
       reviewCount: professional.reviewCount,
-    }));
+    }),
+  );
 
-  return {
-    professionals,
-    total,
-    page: currentPage,
-    pageSize: PAGE_SIZE,
-    totalPages,
-  };
+  return professionals;
 }
 
 export async function getProfessionalBySlug(

@@ -3,16 +3,6 @@ import { ReviewType } from "@prisma/client";
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
-export const SearchProfessionalsParamsSchema = z.object({
-  trade: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
-  department: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
-  page: z.coerce.number().int().min(1).catch(1),
-});
-
-export type SearchProfessionalsParams = z.infer<
-  typeof SearchProfessionalsParamsSchema
->;
-
 export type ProfessionalTradeSummary = {
   name: string;
   slug: string;
@@ -35,14 +25,6 @@ export type ProfessionalSearchItem = {
   departments: ProfessionalDepartmentSummary[];
   score: number | null;
   reviewCount: number;
-};
-
-export type SearchProfessionalsResult = {
-  professionals: ProfessionalSearchItem[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
 };
 
 const yearsExperienceSchema = z.preprocess(
