@@ -135,3 +135,39 @@ export async function getPendingReviews(
     totalPages,
   };
 }
+
+/**
+ * Reseñas que el cliente ya envió (submittedAt) pero todavía no se
+ * publicaron (publishedAt null) porque el profesional no respondió con su
+ * propia calificación del cliente (ClientRating) para ese work_record.
+ */
+export async function getPendingReviewsToRespondCount(
+  professionalId: string,
+): Promise<number> {
+  const reviews = await prisma.review.findMany({
+    where: {
+      reviewedProfessionalId: professionalId,
+      submittedAt: { not: null },
+      publishedAt: null,
+    },
+    select: { workRecordId: true },
+  });
+
+  if (reviews.length === 0) {
+    return 0;
+  }
+
+  const workRecordIds = reviews.map((review) => review.workRecordId);
+
+  const rated = await prisma.clientRating.findMany({
+    where: {
+      workRecordId: { in: workRecordIds },
+      ratedByProfessionalId: professionalId,
+    },
+    select: { workRecordId: true },
+  });
+
+  const ratedWorkRecordIds = new Set(rated.map((r) => r.workRecordId));
+
+  return workRecordIds.filter((id) => !ratedWorkRecordIds.has(id)).length;
+}

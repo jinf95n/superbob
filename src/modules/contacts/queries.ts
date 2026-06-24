@@ -7,3 +7,12 @@ export async function getContactEventsCountSince(
     where: { createdAt: { gte: since } },
   });
 }
+
+export async function getContactEventsCountForProfessionalSince(
+  professionalId: string,
+  since: Date,
+): Promise<number> {
+  return prisma.contactEvent.count({
+    where: { professionalId, createdAt: { gte: since } },
+  });
+}

@@ -1,7 +1,10 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: "media",
+  // SUPERBOB es solo tema claro en Fase 1. "class" (en vez de "media") evita
+  // que las clases dark: reaccionen al prefers-color-scheme del SO: como
+  // nada en la app agrega una clase .dark, quedan permanentemente inertes.
+  darkMode: "class",
   content: [
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
