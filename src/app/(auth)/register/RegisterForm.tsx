@@ -5,14 +5,12 @@ import Link from "next/link";
 import { registerAction } from "@/modules/users/actions";
 import { AuthActionState } from "@/modules/users/types";
 import { authClient } from "@/lib/auth-client";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 const initialState: AuthActionState = {};
 
 export function RegisterForm() {
-  const [state, formAction, isPending] = useActionState(
-    registerAction,
-    initialState,
-  );
+  const [state, formAction] = useActionState(registerAction, initialState);
 
   return (
     <main className="w-full max-w-sm p-8">
@@ -63,13 +61,12 @@ export function RegisterForm() {
           <p className="text-sm text-red-600">{state.error}</p>
         )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
+        <SubmitButton
+          pendingLabel="Creando cuenta..."
+          className="rounded bg-neutral-900 px-4 py-2 text-white"
         >
-          {isPending ? "Creando cuenta..." : "Crear cuenta"}
-        </button>
+          Crear cuenta
+        </SubmitButton>
       </form>
 
       <button

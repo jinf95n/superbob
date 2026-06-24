@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { Spinner } from "@/components/ui/Spinner";
 
 type UserMenuProps = {
   fullName: string;
@@ -22,6 +23,7 @@ export function UserMenu({
 }: UserMenuProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,8 +43,9 @@ export function UserMenu({
   }, [isOpen]);
 
   async function handleLogout() {
-    setIsOpen(false);
+    setIsLoggingOut(true);
     await authClient.signOut();
+    setIsOpen(false);
     router.push("/");
     router.refresh();
   }
@@ -127,9 +130,11 @@ export function UserMenu({
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full rounded-lg px-3 py-2 text-left text-[15px] text-sb-error hover:bg-sb-card-blue"
+            disabled={isLoggingOut}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[15px] text-sb-error hover:bg-sb-card-blue disabled:opacity-50"
           >
-            Cerrar sesión
+            {isLoggingOut && <Spinner className="h-4 w-4" />}
+            {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
           </button>
         </div>
       )}

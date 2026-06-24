@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitClientReviewAction } from "@/modules/reviews/actions";
 import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
 
 type ClientReviewFormProps = {
   workRecordId: string;
@@ -85,8 +86,9 @@ export function ClientReviewForm({ workRecordId }: ClientReviewFormProps) {
         type="button"
         onClick={handleSubmit}
         disabled={isSubmitting}
-        className="mt-4 w-full"
+        className="mt-4 flex w-full items-center justify-center gap-2"
       >
+        {isSubmitting && <Spinner className="h-4 w-4" />}
         {isSubmitting ? "Publicando..." : "Publicar reseña"}
       </Button>
     </div>

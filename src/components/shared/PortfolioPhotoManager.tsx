@@ -6,6 +6,7 @@ import {
   uploadPortfolioPhotoAction,
 } from "@/modules/photos/actions";
 import { PortfolioPhotoItem } from "@/modules/photos/types";
+import { Spinner } from "@/components/ui/Spinner";
 
 const MAX_PORTFOLIO_PHOTOS = 10;
 
@@ -20,23 +21,37 @@ export function PortfolioPhotoManager({
   const [error, setError] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [isUploading, startUpload] = useTransition();
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(
+    null,
+  );
+  const [, startDelete] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const atLimit = photos.length >= MAX_PORTFOLIO_PHOTOS;
 
   function uploadFile(file: File) {
     setError(null);
+    const previewUrl = URL.createObjectURL(file);
+    setPendingPreviewUrl(previewUrl);
+
     const formData = new FormData();
     formData.set("photo", file);
 
     startUpload(async () => {
-      const result = await uploadPortfolioPhotoAction(formData);
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-      if (result.photo) {
-        setPhotos((prev) => [...prev, result.photo!]);
+      try {
+        const result = await uploadPortfolioPhotoAction(formData);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        if (result.photo) {
+          setPhotos((prev) => [...prev, result.photo!]);
+        }
+      } catch {
+        setError("No pudimos subir la imagen, intentá de nuevo");
+      } finally {
+        URL.revokeObjectURL(previewUrl);
+        setPendingPreviewUrl(null);
       }
     });
   }
@@ -62,7 +77,7 @@ export function PortfolioPhotoManager({
   function handleDelete(photoId: string) {
     setError(null);
     setDeletingId(photoId);
-    startUpload(async () => {
+    startDelete(async () => {
       const result = await deletePortfolioPhotoAction({ photoId });
       setDeletingId(null);
       if (result.error) {
@@ -79,7 +94,7 @@ export function PortfolioPhotoManager({
         {photos.length} de {MAX_PORTFOLIO_PHOTOS} fotos
       </p>
 
-      {photos.length > 0 && (
+      {(photos.length > 0 || pendingPreviewUrl) && (
         <div className="grid grid-cols-3 gap-2">
           {photos.map((photo) => (
             <div key={photo.id} className="relative aspect-square">
@@ -87,19 +102,40 @@ export function PortfolioPhotoManager({
               <img
                 src={photo.thumbnailUrl ?? photo.url}
                 alt={photo.caption ?? "Foto de trabajo"}
-                className="h-full w-full rounded-2xl object-cover"
+                className={`h-full w-full rounded-2xl object-cover ${
+                  deletingId === photo.id ? "opacity-50" : ""
+                }`}
               />
-              <button
-                type="button"
-                onClick={() => handleDelete(photo.id)}
-                disabled={deletingId === photo.id}
-                aria-label="Eliminar foto"
-                className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-sb-text/70 text-sm text-white disabled:opacity-50"
-              >
-                ✕
-              </button>
+              {deletingId === photo.id ? (
+                <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/30">
+                  <Spinner className="h-5 w-5 text-white" />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(photo.id)}
+                  aria-label="Eliminar foto"
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-sb-text/70 text-sm text-white"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
+
+          {pendingPreviewUrl && (
+            <div className="relative aspect-square">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={pendingPreviewUrl}
+                alt="Subiendo foto"
+                className="h-full w-full rounded-2xl object-cover opacity-60"
+              />
+              <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40">
+                <Spinner className="h-6 w-6 text-white" />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -124,6 +160,7 @@ export function PortfolioPhotoManager({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="hidden"
+              disabled={isUploading}
               onChange={(event) =>
                 handleFileInputChange(event.target.files?.[0])
               }
@@ -132,9 +169,6 @@ export function PortfolioPhotoManager({
         </div>
       )}
 
-      {isUploading && (
-        <p className="text-sm text-sb-muted">Subiendo...</p>
-      )}
       {error && <p className="text-sm text-sb-error">{error}</p>}
     </div>
   );

@@ -5,6 +5,7 @@ import { getUserAccountProfile, getUserRole } from "@/modules/users/queries";
 import { getProfessionalSlugByUserId } from "@/modules/professionals/queries";
 import { Button } from "@/components/ui/Button";
 import { UserMenu } from "./UserMenu";
+import { HeaderNavLinks } from "./HeaderNavLinks";
 
 export async function Header() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,12 +28,7 @@ export async function Header() {
       </Link>
 
       <nav className="flex items-center gap-3">
-        <Link
-          href="/search"
-          className="hidden text-sm font-medium text-sb-text sm:inline"
-        >
-          Buscar
-        </Link>
+        <HeaderNavLinks isAdmin={role === "admin"} />
 
         {session && accountProfile ? (
           <UserMenu

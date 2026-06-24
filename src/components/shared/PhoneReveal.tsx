@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { revealPhoneAction } from "@/modules/contacts/actions";
 import { ContactEventSource } from "@prisma/client";
+import { Spinner } from "@/components/ui/Spinner";
 
 type PhoneRevealProps = {
   professionalId: string;
@@ -61,8 +62,9 @@ export function PhoneReveal({ professionalId, source }: PhoneRevealProps) {
         type="button"
         onClick={handleClick}
         disabled={isRevealing}
-        className={`${BAR_CLASSES} bg-sb-blue text-white disabled:opacity-50`}
+        className={`${BAR_CLASSES} gap-2 bg-sb-blue text-white disabled:opacity-50`}
       >
+        {isRevealing && <Spinner className="h-4 w-4" />}
         {isRevealing ? "Cargando..." : "Ver teléfono"}
       </button>
       {error && (

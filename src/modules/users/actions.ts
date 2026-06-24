@@ -6,6 +6,7 @@ import { APIError } from "better-auth/api";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getUserRole } from "./queries";
 import {
   AuthActionState,
   LoginSchema,
@@ -134,13 +135,15 @@ export async function loginAction(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
+  let userId: string;
   try {
-    await auth.api.signInEmail({
+    const result = await auth.api.signInEmail({
       body: {
         email: parsed.data.email,
         password: parsed.data.password,
       },
     });
+    userId = result.user.id;
   } catch (error) {
     if (error instanceof APIError) {
       return { error: "Email o contraseña incorrectos" };
@@ -148,10 +151,11 @@ export async function loginAction(
     throw error;
   }
 
-  redirect("/dashboard");
+  const role = await getUserRole(userId);
+  redirect(role === "admin" ? "/admin" : "/dashboard");
 }
 
-const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_AVATAR_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -182,32 +186,36 @@ export async function uploadAvatarAction(
   }
 
   if (file.size > MAX_AVATAR_SIZE_BYTES) {
-    return { error: "La imagen no puede superar los 5MB" };
+    return { error: "La imagen no puede superar 2MB" };
   }
 
-  const path = `${session.user.id}/${Date.now()}.${extension}`;
+  try {
+    const path = `${session.user.id}/${Date.now()}.${extension}`;
 
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from("avatars")
-    .upload(path, await file.arrayBuffer(), {
-      contentType: file.type,
-      upsert: true,
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("avatars")
+      .upload(path, await file.arrayBuffer(), {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      return { error: "No pudimos subir la imagen, intentá de nuevo" };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabaseAdmin.storage.from("avatars").getPublicUrl(path);
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { avatarUrl: publicUrl },
     });
 
-  if (uploadError) {
+    return { avatarUrl: publicUrl };
+  } catch {
     return { error: "No pudimos subir la imagen, intentá de nuevo" };
   }
-
-  const {
-    data: { publicUrl },
-  } = supabaseAdmin.storage.from("avatars").getPublicUrl(path);
-
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { avatarUrl: publicUrl },
-  });
-
-  return { avatarUrl: publicUrl };
 }
 
 export async function updateUserProfileAction(

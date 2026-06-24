@@ -8,6 +8,7 @@ import { ProfessionalProfileForEdit } from "@/modules/professionals/types";
 import { uploadAvatarAction } from "@/modules/users/actions";
 import { PortfolioPhotoItem } from "@/modules/photos/types";
 import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager";
+import { Spinner } from "@/components/ui/Spinner";
 
 const PRIMARY_BUTTON_CLASSES =
   "flex h-[52px] w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50";
@@ -92,17 +93,28 @@ export function ProfessionalEditWizard({
     if (!file) return;
 
     setAvatarError(null);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarUrl(previewUrl);
+
     const formData = new FormData();
     formData.set("avatar", file);
 
     startAvatarUpload(async () => {
-      const result = await uploadAvatarAction(formData);
-      if (result.error) {
-        setAvatarError(result.error);
-        return;
-      }
-      if (result.avatarUrl) {
-        setAvatarUrl(result.avatarUrl);
+      try {
+        const result = await uploadAvatarAction(formData);
+        if (result.error) {
+          setAvatarError(result.error);
+          setAvatarUrl(initialAvatarUrl);
+          return;
+        }
+        if (result.avatarUrl) {
+          setAvatarUrl(result.avatarUrl);
+        }
+      } catch {
+        setAvatarError("No pudimos subir la imagen, intentá de nuevo");
+        setAvatarUrl(initialAvatarUrl);
+      } finally {
+        URL.revokeObjectURL(previewUrl);
       }
     });
   }
@@ -198,16 +210,23 @@ export function ProfessionalEditWizard({
               Foto de perfil
             </label>
             <div className="mt-2 flex items-center gap-3">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarUrl}
-                  alt="Foto de perfil"
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-full bg-sb-card-blue" />
-              )}
+              <div className="relative h-16 w-16 shrink-0">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt="Foto de perfil"
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-sb-card-blue" />
+                )}
+                {isUploadingAvatar && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                    <Spinner className="h-6 w-6 text-white" />
+                  </div>
+                )}
+              </div>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -216,9 +235,6 @@ export function ProfessionalEditWizard({
                 className="text-sm"
               />
             </div>
-            {isUploadingAvatar && (
-              <p className="mt-1 text-sm text-sb-muted">Subiendo...</p>
-            )}
             {avatarError && (
               <p className="mt-1 text-sm text-sb-error">{avatarError}</p>
             )}
@@ -507,8 +523,9 @@ export function ProfessionalEditWizard({
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className={PRIMARY_BUTTON_CLASSES}
+              className={`${PRIMARY_BUTTON_CLASSES} gap-2`}
             >
+              {isSubmitting && <Spinner className="h-4 w-4" />}
               {isSubmitting ? "Guardando..." : "Guardar cambios"}
             </button>
           </div>

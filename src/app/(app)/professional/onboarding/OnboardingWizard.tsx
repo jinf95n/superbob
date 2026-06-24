@@ -5,6 +5,7 @@ import { TradeCategoryWithTrades } from "@/modules/trades/queries";
 import { ProvinceWithDepartments } from "@/modules/geography/queries";
 import { createProfessionalProfileAction } from "@/modules/professionals/actions";
 import { uploadAvatarAction } from "@/modules/users/actions";
+import { Spinner } from "@/components/ui/Spinner";
 
 type SecondaryTradeRow = {
   tradeId: string;
@@ -73,17 +74,28 @@ export function OnboardingWizard({
     if (!file) return;
 
     setAvatarError(null);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarUrl(previewUrl);
+
     const formData = new FormData();
     formData.set("avatar", file);
 
     startAvatarUpload(async () => {
-      const result = await uploadAvatarAction(formData);
-      if (result.error) {
-        setAvatarError(result.error);
-        return;
-      }
-      if (result.avatarUrl) {
-        setAvatarUrl(result.avatarUrl);
+      try {
+        const result = await uploadAvatarAction(formData);
+        if (result.error) {
+          setAvatarError(result.error);
+          setAvatarUrl(initialAvatarUrl);
+          return;
+        }
+        if (result.avatarUrl) {
+          setAvatarUrl(result.avatarUrl);
+        }
+      } catch {
+        setAvatarError("No pudimos subir la imagen, intentá de nuevo");
+        setAvatarUrl(initialAvatarUrl);
+      } finally {
+        URL.revokeObjectURL(previewUrl);
       }
     });
   }
@@ -174,16 +186,23 @@ export function OnboardingWizard({
               Foto de perfil
             </label>
             <div className="mt-2 flex items-center gap-3">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarUrl}
-                  alt="Foto de perfil"
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-full bg-neutral-200" />
-              )}
+              <div className="relative h-16 w-16 shrink-0">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt="Foto de perfil"
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-neutral-200" />
+                )}
+                {isUploadingAvatar && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                    <Spinner className="h-6 w-6 text-white" />
+                  </div>
+                )}
+              </div>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -192,9 +211,6 @@ export function OnboardingWizard({
                 className="text-sm"
               />
             </div>
-            {isUploadingAvatar && (
-              <p className="mt-1 text-sm text-neutral-500">Subiendo...</p>
-            )}
             {avatarError && (
               <p className="mt-1 text-sm text-red-600">{avatarError}</p>
             )}
@@ -460,8 +476,9 @@ export function OnboardingWizard({
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="w-full rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
             >
+              {isSubmitting && <Spinner className="h-4 w-4" />}
               {isSubmitting ? "Guardando..." : "Finalizar"}
             </button>
           </div>

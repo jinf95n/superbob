@@ -17,6 +17,8 @@ import {
   verifyPhoneOtpAction,
 } from "@/modules/users/actions";
 import { PhoneOtpActionState, UserAccountProfile } from "@/modules/users/types";
+import { Spinner } from "@/components/ui/Spinner";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 type ProfileFormProps = {
   accountProfile: UserAccountProfile;
@@ -32,6 +34,7 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
   const [avatarUrl, setAvatarUrl] = useState(accountProfile.avatarUrl);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isUploadingAvatar, startAvatarUpload] = useTransition();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Nombre
   const [fullName, setFullName] = useState(accountProfile.fullName);
@@ -44,11 +47,11 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
   const [isVerifyingPhone, setIsVerifyingPhone] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState(accountProfile.phone ?? "");
-  const [sendOtpState, sendOtpFormAction, isSendingOtp] = useActionState(
+  const [sendOtpState, sendOtpFormAction] = useActionState(
     sendPhoneOtpAction,
     initialOtpState,
   );
-  const [verifyOtpState, verifyOtpFormAction, isVerifyingOtp] = useActionState(
+  const [verifyOtpState, verifyOtpFormAction] = useActionState(
     verifyPhoneOtpAction,
     initialOtpState,
   );
@@ -70,17 +73,28 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
     if (!file) return;
 
     setAvatarError(null);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarUrl(previewUrl);
+
     const formData = new FormData();
     formData.set("avatar", file);
 
     startAvatarUpload(async () => {
-      const result = await uploadAvatarAction(formData);
-      if (result.error) {
-        setAvatarError(result.error);
-        return;
-      }
-      if (result.avatarUrl) {
-        setAvatarUrl(result.avatarUrl);
+      try {
+        const result = await uploadAvatarAction(formData);
+        if (result.error) {
+          setAvatarError(result.error);
+          setAvatarUrl(accountProfile.avatarUrl);
+          return;
+        }
+        if (result.avatarUrl) {
+          setAvatarUrl(result.avatarUrl);
+        }
+      } catch {
+        setAvatarError("No pudimos subir la imagen, intentá de nuevo");
+        setAvatarUrl(accountProfile.avatarUrl);
+      } finally {
+        URL.revokeObjectURL(previewUrl);
       }
     });
   }
@@ -100,6 +114,7 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
   }
 
   async function handleLogout() {
+    setIsLoggingOut(true);
     await authClient.signOut();
     router.push("/");
   }
@@ -111,18 +126,25 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
           Foto de perfil
         </label>
         <div className="mt-2 flex items-center gap-3">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt="Foto de perfil"
-              className="h-16 w-16 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sb-card-blue text-xl font-semibold text-sb-blue">
-              {accountProfile.fullName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          <div className="relative h-16 w-16 shrink-0">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt="Foto de perfil"
+                className="h-16 w-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sb-card-blue text-xl font-semibold text-sb-blue">
+                {accountProfile.fullName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            {isUploadingAvatar && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                <Spinner className="h-6 w-6 text-white" />
+              </div>
+            )}
+          </div>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
@@ -131,9 +153,6 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
             className="text-sm"
           />
         </div>
-        {isUploadingAvatar && (
-          <p className="mt-1 text-sm text-sb-muted">Subiendo...</p>
-        )}
         {avatarError && <p className="mt-1 text-sm text-sb-error">{avatarError}</p>}
       </div>
 
@@ -159,8 +178,9 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
           type="button"
           onClick={handleSaveName}
           disabled={isSavingName || fullName === accountProfile.fullName}
-          className="mt-3 flex h-[52px] w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
+          className="mt-3 flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
         >
+          {isSavingName && <Spinner className="h-4 w-4" />}
           {isSavingName ? "Guardando..." : "Guardar nombre"}
         </button>
       </div>
@@ -195,13 +215,12 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
                 {sendOtpState.error && (
                   <p className="text-sm text-sb-error">{sendOtpState.error}</p>
                 )}
-                <button
-                  type="submit"
-                  disabled={isSendingOtp}
-                  className="flex h-[52px] w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
+                <SubmitButton
+                  pendingLabel="Enviando..."
+                  className="h-[52px] rounded-full bg-sb-blue text-[15px] font-medium text-white"
                 >
-                  {isSendingOtp ? "Enviando..." : "Enviar código"}
-                </button>
+                  Enviar código
+                </SubmitButton>
               </form>
             ) : (
               <form action={verifyOtpFormAction} className="flex flex-col gap-2">
@@ -219,13 +238,12 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
                 {verifyOtpState.error && (
                   <p className="text-sm text-sb-error">{verifyOtpState.error}</p>
                 )}
-                <button
-                  type="submit"
-                  disabled={isVerifyingOtp}
-                  className="flex h-[52px] w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
+                <SubmitButton
+                  pendingLabel="Verificando..."
+                  className="h-[52px] rounded-full bg-sb-blue text-[15px] font-medium text-white"
                 >
-                  {isVerifyingOtp ? "Verificando..." : "Verificar código"}
-                </button>
+                  Verificar código
+                </SubmitButton>
               </form>
             )}
           </div>
@@ -261,9 +279,11 @@ export function ProfileForm({ accountProfile, professionalSlug }: ProfileFormPro
       <button
         type="button"
         onClick={handleLogout}
-        className="flex h-[52px] w-full items-center justify-center rounded-full border border-sb-border text-[15px] font-medium text-sb-text"
+        disabled={isLoggingOut}
+        className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full border border-sb-border text-[15px] font-medium text-sb-text disabled:opacity-50"
       >
-        Cerrar sesión
+        {isLoggingOut && <Spinner className="h-4 w-4" />}
+        {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
       </button>
     </div>
   );

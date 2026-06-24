@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getUserRole } from "@/modules/users/queries";
+import { Header } from "@/components/layout/Header";
 import { AdminNav } from "@/components/layout/AdminNav";
 
 export default async function AdminLayout({
@@ -21,6 +22,7 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-sb-bg">
+      <Header />
       <AdminNav />
       <main className="p-4">{children}</main>
     </div>

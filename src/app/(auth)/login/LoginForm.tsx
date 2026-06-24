@@ -5,14 +5,12 @@ import Link from "next/link";
 import { loginAction } from "@/modules/users/actions";
 import { AuthActionState } from "@/modules/users/types";
 import { authClient } from "@/lib/auth-client";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 const initialState: AuthActionState = {};
 
 export function LoginForm() {
-  const [state, formAction, isPending] = useActionState(
-    loginAction,
-    initialState,
-  );
+  const [state, formAction] = useActionState(loginAction, initialState);
 
   return (
     <main className="w-full max-w-sm p-8">
@@ -49,13 +47,12 @@ export function LoginForm() {
           <p className="text-sm text-red-600">{state.error}</p>
         )}
 
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
+        <SubmitButton
+          pendingLabel="Ingresando..."
+          className="rounded bg-neutral-900 px-4 py-2 text-white"
         >
-          {isPending ? "Ingresando..." : "Ingresar"}
-        </button>
+          Ingresar
+        </SubmitButton>
       </form>
 
       <button

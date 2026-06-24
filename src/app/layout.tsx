@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, DM_Sans } from "next/font/google";
+import { NavigationProgress } from "@/components/shared/NavigationProgress";
 import "./globals.css";
 
 const inter = Inter({
@@ -29,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="es" className="light" suppressHydrationWarning>
       <body className={`${inter.variable} ${dmSans.variable} antialiased`}>
+        <NavigationProgress />
         {children}
       </body>
     </html>

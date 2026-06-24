@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { createReportAction } from "@/modules/reports/actions";
 import { REPORT_REASONS } from "@/modules/reports/types";
+import { Spinner } from "@/components/ui/Spinner";
 
 type ReportModalProps = {
   reportedUserId: string;
@@ -133,8 +134,9 @@ export function ReportModal({
                   type="button"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="mt-4 flex h-[52px] w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
+                  className="mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
                 >
+                  {isSubmitting && <Spinner className="h-4 w-4" />}
                   {isSubmitting ? "Enviando..." : "Enviar reporte"}
                 </button>
               </>

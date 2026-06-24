@@ -8,6 +8,7 @@ import {
 } from "@/modules/reviews/actions";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Spinner } from "@/components/ui/Spinner";
 
 type MarkWorkCompletedFormProps = {
   tradeCategories: TradeCategoryWithTrades[];
@@ -120,7 +121,13 @@ export function MarkWorkCompletedForm({
         </p>
       )}
 
-      <Button type="button" onClick={handleSubmit} disabled={isSubmitting}>
+      <Button
+        type="button"
+        onClick={handleSubmit}
+        disabled={isSubmitting}
+        className="flex items-center justify-center gap-2"
+      >
+        {isSubmitting && <Spinner className="h-4 w-4" />}
         {isSubmitting ? "Guardando..." : "Marcar trabajo"}
       </Button>
     </div>

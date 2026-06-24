@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitProfessionalRatingAction } from "@/modules/reviews/actions";
 import { Button } from "@/components/ui/Button";
+import { Spinner } from "@/components/ui/Spinner";
 
 type RateClientFormProps = {
   workRecordId: string;
@@ -74,8 +75,9 @@ export function RateClientForm({ workRecordId }: RateClientFormProps) {
         type="button"
         onClick={handleSubmit}
         disabled={isSubmitting}
-        className="mt-2"
+        className="mt-2 flex items-center justify-center gap-2"
       >
+        {isSubmitting && <Spinner className="h-4 w-4" />}
         {isSubmitting ? "Guardando..." : "Calificar cliente"}
       </Button>
     </div>

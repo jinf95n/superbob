@@ -12,7 +12,7 @@ import {
   UploadPortfolioPhotoActionState,
 } from "./types";
 
-const MAX_PHOTO_SIZE_BYTES = 8 * 1024 * 1024;
+const MAX_PHOTO_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -64,53 +64,57 @@ export async function uploadPortfolioPhotoAction(
   }
 
   if (file.size > MAX_PHOTO_SIZE_BYTES) {
-    return { error: "La imagen no puede superar los 8MB" };
+    return { error: "La imagen no puede superar 2MB" };
   }
 
-  const currentCount = await prisma.workPhoto.count({
-    where: { professionalId },
-  });
-  if (currentCount >= MAX_PORTFOLIO_PHOTOS) {
-    return {
-      error: `Llegaste al límite de ${MAX_PORTFOLIO_PHOTOS} fotos. Borrá alguna para subir otra.`,
-    };
-  }
+  try {
+    const currentCount = await prisma.workPhoto.count({
+      where: { professionalId },
+    });
+    if (currentCount >= MAX_PORTFOLIO_PHOTOS) {
+      return {
+        error: `Llegaste al límite de ${MAX_PORTFOLIO_PHOTOS} fotos. Borrá alguna para subir otra.`,
+      };
+    }
 
-  await ensurePortfolioBucketExists();
+    await ensurePortfolioBucketExists();
 
-  const path = `${professionalId}/${Date.now()}.${extension}`;
+    const path = `${professionalId}/${Date.now()}.${extension}`;
 
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from(PORTFOLIO_BUCKET)
-    .upload(path, await file.arrayBuffer(), {
-      contentType: file.type,
-      upsert: true,
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(PORTFOLIO_BUCKET)
+      .upload(path, await file.arrayBuffer(), {
+        contentType: file.type,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      return { error: "No pudimos subir la imagen, intentá de nuevo" };
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabaseAdmin.storage.from(PORTFOLIO_BUCKET).getPublicUrl(path);
+
+    const photo = await prisma.workPhoto.create({
+      data: {
+        professionalId,
+        url: publicUrl,
+        order: currentCount,
+      },
     });
 
-  if (uploadError) {
+    return {
+      photo: {
+        id: photo.id,
+        url: photo.url,
+        thumbnailUrl: photo.thumbnailUrl,
+        caption: photo.caption,
+      },
+    };
+  } catch {
     return { error: "No pudimos subir la imagen, intentá de nuevo" };
   }
-
-  const {
-    data: { publicUrl },
-  } = supabaseAdmin.storage.from(PORTFOLIO_BUCKET).getPublicUrl(path);
-
-  const photo = await prisma.workPhoto.create({
-    data: {
-      professionalId,
-      url: publicUrl,
-      order: currentCount,
-    },
-  });
-
-  return {
-    photo: {
-      id: photo.id,
-      url: photo.url,
-      thumbnailUrl: photo.thumbnailUrl,
-      caption: photo.caption,
-    },
-  };
 }
 
 export async function deletePortfolioPhotoAction(
