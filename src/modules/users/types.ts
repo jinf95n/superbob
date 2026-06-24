@@ -34,6 +34,25 @@ export type PhoneOtpActionState = {
   success?: boolean;
 };
 
+export const UpdateUserProfileSchema = z.object({
+  fullName: z.string().trim().min(2, "Ingresá tu nombre completo").max(100),
+});
+
+export type UpdateUserProfileInput = z.infer<typeof UpdateUserProfileSchema>;
+
+export type UpdateUserProfileActionState = {
+  error?: string;
+  success?: boolean;
+};
+
+export type UserAccountProfile = {
+  fullName: string;
+  email: string;
+  phone: string | null;
+  phoneVerifiedAt: Date | null;
+  avatarUrl: string | null;
+};
+
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
 export const AdminUserListParamsSchema = z.object({

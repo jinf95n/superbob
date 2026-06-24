@@ -1,6 +1,26 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, Role } from "@prisma/client";
-import { AdminUserListItem, AdminUserListParams, AdminUserListResult } from "./types";
+import {
+  AdminUserListItem,
+  AdminUserListParams,
+  AdminUserListResult,
+  UserAccountProfile,
+} from "./types";
+
+export async function getUserAccountProfile(
+  userId: string,
+): Promise<UserAccountProfile | null> {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      fullName: true,
+      email: true,
+      phone: true,
+      phoneVerifiedAt: true,
+      avatarUrl: true,
+    },
+  });
+}
 
 export type UserAccountInfo = {
   phone: string | null;

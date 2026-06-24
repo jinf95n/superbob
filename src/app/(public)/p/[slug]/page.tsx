@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { getProfessionalBySlug } from "@/modules/professionals/queries";
 import { PhoneReveal } from "@/components/shared/PhoneReveal";
+import { ReportModal } from "@/components/shared/ReportModal";
 
 type ProfessionalPublicProfilePageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const REVIEW_TYPE_LABEL: Record<string, string> = {
@@ -13,8 +15,10 @@ const REVIEW_TYPE_LABEL: Record<string, string> = {
 
 export default async function ProfessionalPublicProfilePage({
   params,
+  searchParams,
 }: ProfessionalPublicProfilePageProps) {
   const { slug } = await params;
+  const { updated } = await searchParams;
   const professional = await getProfessionalBySlug(slug);
 
   if (!professional) {
@@ -37,6 +41,12 @@ export default async function ProfessionalPublicProfilePage({
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8 pb-32 sm:pb-12">
+      {updated === "1" && (
+        <p className="mb-6 rounded-2xl bg-sb-card-blue p-4 text-center text-[15px] text-sb-text">
+          Guardado. Tu perfil ya está actualizado.
+        </p>
+      )}
+
       <div className="flex flex-col items-center text-center">
         {professional.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -184,6 +194,12 @@ export default async function ProfessionalPublicProfilePage({
                     {review.comment}
                   </p>
                 )}
+                <div className="mt-2">
+                  <ReportModal
+                    reportedUserId={review.reviewerId}
+                    triggerLabel="Reportar reseña"
+                  />
+                </div>
               </li>
             ))}
           </ul>
@@ -191,6 +207,14 @@ export default async function ProfessionalPublicProfilePage({
       </section>
 
       <PhoneReveal professionalId={professional.id} source="profile" />
+
+      <div className="mt-10 text-center">
+        <ReportModal
+          reportedUserId={professional.userId}
+          reportedProfessionalId={professional.id}
+          triggerLabel="Reportar perfil"
+        />
+      </div>
     </main>
   );
 }

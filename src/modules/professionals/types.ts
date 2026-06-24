@@ -110,6 +110,7 @@ export type ProfessionalPortfolioPhoto = {
 
 export type ProfessionalPublishedReview = {
   id: string;
+  reviewerId: string;
   reviewerName: string;
   tradeName: string;
   type: ReviewType;
@@ -120,6 +121,7 @@ export type ProfessionalPublishedReview = {
 
 export type ProfessionalProfileDetail = {
   id: string;
+  userId: string;
   slug: string;
   fullName: string;
   avatarUrl: string | null;
@@ -129,6 +131,22 @@ export type ProfessionalProfileDetail = {
   departments: ProfessionalDepartmentSummary[];
   photos: ProfessionalPortfolioPhoto[];
   reviews: ProfessionalPublishedReview[];
+};
+
+export type ProfessionalSecondaryTradeForEdit = {
+  tradeId: string;
+  yearsExperience: number | null;
+};
+
+export type ProfessionalProfileForEdit = {
+  id: string;
+  slug: string;
+  bio: string | null;
+  contactPhone: string | null;
+  primaryTradeId: string | null;
+  primaryYearsExperience: number | null;
+  secondaryTrades: ProfessionalSecondaryTradeForEdit[];
+  departmentIds: string[];
 };
 
 const statusFilterSchema = z.preprocess(

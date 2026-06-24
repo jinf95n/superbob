@@ -13,6 +13,8 @@ import {
   UpdateProfessionalStatusActionState,
 } from "./types";
 
+export type UpdateProfessionalProfileActionState = CreateProfessionalProfileActionState;
+
 const SLUG_SUFFIX_LENGTH = 4;
 const MAX_SLUG_ATTEMPTS = 5;
 
@@ -141,4 +143,80 @@ export async function updateProfessionalVerifiedStatusAction(
   });
 
   return {};
+}
+
+export async function updateProfessionalProfileAction(
+  input: CreateProfessionalProfileInput,
+): Promise<UpdateProfessionalProfileActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  const existingProfile = await prisma.professionalProfile.findUnique({
+    where: { userId: session.user.id },
+    select: { id: true, slug: true },
+  });
+  if (!existingProfile) {
+    redirect("/professional/onboarding");
+  }
+
+  const parsed = CreateProfessionalProfileSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const {
+    bio,
+    contactPhone,
+    primaryTradeId,
+    primaryYearsExperience,
+    secondaryTrades,
+    departmentIds,
+  } = parsed.data;
+
+  const uniqueDepartmentIds = [...new Set(departmentIds)];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.professionalProfile.update({
+      where: { id: existingProfile.id },
+      data: { bio, contactPhone },
+    });
+
+    // Se borran y recrean las relaciones para evitar pisar el índice
+    // parcial único de oficio primario (regla #7 de CLAUDE.md).
+    await tx.professionalTrade.deleteMany({
+      where: { professionalId: existingProfile.id },
+    });
+    await tx.professionalTrade.create({
+      data: {
+        professionalId: existingProfile.id,
+        tradeId: primaryTradeId,
+        isPrimary: true,
+        yearsExperience: primaryYearsExperience,
+      },
+    });
+    if (secondaryTrades.length > 0) {
+      await tx.professionalTrade.createMany({
+        data: secondaryTrades.map((trade) => ({
+          professionalId: existingProfile.id,
+          tradeId: trade.tradeId,
+          isPrimary: false,
+          yearsExperience: trade.yearsExperience,
+        })),
+      });
+    }
+
+    await tx.professionalCoverageArea.deleteMany({
+      where: { professionalId: existingProfile.id },
+    });
+    await tx.professionalCoverageArea.createMany({
+      data: uniqueDepartmentIds.map((departmentId) => ({
+        professionalId: existingProfile.id,
+        departmentId,
+      })),
+    });
+  });
+
+  redirect(`/p/${existingProfile.slug}?updated=1`);
 }

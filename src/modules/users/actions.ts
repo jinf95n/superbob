@@ -12,6 +12,9 @@ import {
   PhoneOtpActionState,
   RegisterSchema,
   SendPhoneOtpSchema,
+  UpdateUserProfileActionState,
+  UpdateUserProfileInput,
+  UpdateUserProfileSchema,
   VerifyPhoneOtpSchema,
 } from "./types";
 
@@ -205,4 +208,25 @@ export async function uploadAvatarAction(
   });
 
   return { avatarUrl: publicUrl };
+}
+
+export async function updateUserProfileAction(
+  input: UpdateUserProfileInput,
+): Promise<UpdateUserProfileActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  const parsed = UpdateUserProfileSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { fullName: parsed.data.fullName },
+  });
+
+  return { success: true };
 }

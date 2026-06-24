@@ -6,6 +6,7 @@ import {
   AdminProfessionalListParams,
   AdminProfessionalListResult,
   ProfessionalProfileDetail,
+  ProfessionalProfileForEdit,
   ProfessionalSearchItem,
   ProfessionalTradeWithScore,
 } from "./types";
@@ -106,6 +107,7 @@ export async function getProfessionalBySlug(
     where: { slug },
     select: {
       id: true,
+      userId: true,
       slug: true,
       bio: true,
       isVerified: true,
@@ -136,7 +138,7 @@ export async function getProfessionalBySlug(
           rating: true,
           comment: true,
           publishedAt: true,
-          reviewer: { select: { fullName: true } },
+          reviewer: { select: { id: true, fullName: true } },
           trade: { select: { name: true } },
         },
       },
@@ -168,6 +170,7 @@ export async function getProfessionalBySlug(
 
   return {
     id: professional.id,
+    userId: professional.userId,
     slug: professional.slug,
     fullName: professional.user.fullName,
     avatarUrl: professional.user.avatarUrl,
@@ -180,6 +183,7 @@ export async function getProfessionalBySlug(
     photos: professional.workPhotos,
     reviews: professional.reviewsReceived.map((review) => ({
       id: review.id,
+      reviewerId: review.reviewer.id,
       reviewerName: review.reviewer.fullName,
       tradeName: review.trade.name,
       type: review.type,
@@ -187,6 +191,51 @@ export async function getProfessionalBySlug(
       comment: review.comment,
       publishedAt: review.publishedAt as Date,
     })),
+  };
+}
+
+export async function getProfessionalProfileForEdit(
+  userId: string,
+): Promise<ProfessionalProfileForEdit | null> {
+  const professional = await prisma.professionalProfile.findUnique({
+    where: { userId },
+    select: {
+      id: true,
+      slug: true,
+      bio: true,
+      contactPhone: true,
+      professionalTrades: {
+        select: {
+          isPrimary: true,
+          tradeId: true,
+          yearsExperience: true,
+        },
+      },
+      coverageAreas: { select: { departmentId: true } },
+    },
+  });
+
+  if (!professional) {
+    return null;
+  }
+
+  const primaryTrade = professional.professionalTrades.find((pt) => pt.isPrimary);
+  const secondaryTrades = professional.professionalTrades.filter(
+    (pt) => !pt.isPrimary,
+  );
+
+  return {
+    id: professional.id,
+    slug: professional.slug,
+    bio: professional.bio,
+    contactPhone: professional.contactPhone,
+    primaryTradeId: primaryTrade?.tradeId ?? null,
+    primaryYearsExperience: primaryTrade?.yearsExperience ?? null,
+    secondaryTrades: secondaryTrades.map((pt) => ({
+      tradeId: pt.tradeId,
+      yearsExperience: pt.yearsExperience,
+    })),
+    departmentIds: professional.coverageAreas.map((area) => area.departmentId),
   };
 }
 
@@ -215,6 +264,17 @@ export async function getProfessionalProfileIdByUserId(
   });
 
   return professional?.id ?? null;
+}
+
+export async function getProfessionalSlugByUserId(
+  userId: string,
+): Promise<string | null> {
+  const professional = await prisma.professionalProfile.findUnique({
+    where: { userId },
+    select: { slug: true },
+  });
+
+  return professional?.slug ?? null;
 }
 
 export async function getTotalProfessionalsCount(): Promise<number> {
