@@ -1,11 +1,21 @@
-"use client";
-
 import Link from "next/link";
-import { authClient } from "@/lib/auth-client";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
+import { getUserAccountProfile, getUserRole } from "@/modules/users/queries";
+import { getProfessionalSlugByUserId } from "@/modules/professionals/queries";
 import { Button } from "@/components/ui/Button";
+import { UserMenu } from "./UserMenu";
 
-export function Header() {
-  const { data: session } = authClient.useSession();
+export async function Header() {
+  const session = await auth.api.getSession({ headers: await headers() });
+
+  const [accountProfile, role, professionalSlug] = session
+    ? await Promise.all([
+        getUserAccountProfile(session.user.id),
+        getUserRole(session.user.id),
+        getProfessionalSlugByUserId(session.user.id),
+      ])
+    : [null, null, null];
 
   return (
     <header className="flex items-center justify-between border-b border-sb-border bg-white px-4 py-3">
@@ -24,12 +34,14 @@ export function Header() {
           Buscar
         </Link>
 
-        {session ? (
-          <Link href="/dashboard">
-            <Button variant="secondary" className="px-3 py-1.5 text-sm">
-              Mi cuenta
-            </Button>
-          </Link>
+        {session && accountProfile ? (
+          <UserMenu
+            fullName={accountProfile.fullName}
+            email={accountProfile.email}
+            avatarUrl={accountProfile.avatarUrl}
+            professionalSlug={professionalSlug}
+            isAdmin={role === "admin"}
+          />
         ) : (
           <Link href="/login">
             <Button variant="secondary" className="px-3 py-1.5 text-sm">

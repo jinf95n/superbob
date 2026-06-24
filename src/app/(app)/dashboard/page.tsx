@@ -4,15 +4,20 @@ import { auth } from "@/lib/auth";
 import { getProfessionalProfileIdByUserId } from "@/modules/professionals/queries";
 import { getContactEventsCountForProfessionalSince } from "@/modules/contacts/queries";
 import { getPendingReviewsToRespondCount } from "@/modules/reviews/queries";
+import { getUserRole } from "@/modules/users/queries";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default async function DashboardPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   const fullName = session?.user.name ?? "";
-  const professionalId = session
-    ? await getProfessionalProfileIdByUserId(session.user.id)
-    : null;
+  const [professionalId, role] = session
+    ? await Promise.all([
+        getProfessionalProfileIdByUserId(session.user.id),
+        getUserRole(session.user.id),
+      ])
+    : [null, null];
+  const isAdmin = role === "admin";
 
   const [contactEvents30d, pendingReviews] = professionalId
     ? await Promise.all([
@@ -63,6 +68,22 @@ export default async function DashboardPage() {
                 Ver reseñas pendientes →
               </Link>
             )}
+          </div>
+        ) : isAdmin ? (
+          <div className="rounded-2xl bg-sb-blue p-5 text-white">
+            <h2 className="font-display text-[18px] font-semibold">
+              Panel de administración
+            </h2>
+            <p className="mt-2 text-[15px] leading-relaxed text-white/90">
+              Gestioná profesionales, reseñas, reportes y usuarios de la
+              plataforma.
+            </p>
+            <Link
+              href="/admin"
+              className="mt-4 inline-flex h-12 items-center justify-center rounded-full bg-white px-6 text-[15px] font-medium text-sb-blue"
+            >
+              Ir al panel de administración
+            </Link>
           </div>
         ) : (
           <div className="rounded-2xl bg-sb-blue p-5 text-white">
