@@ -6,6 +6,8 @@ import {
   AdminProfessionalListParams,
   AdminProfessionalListResult,
   ContactMetrics,
+  FeaturedProfessional,
+  PlatformStats,
   ProfessionalBadge,
   ProfessionalFullProfile,
   ProfessionalProfileForEdit,
@@ -106,6 +108,117 @@ export async function getActiveProfessionalsForSearch(): Promise<
   );
 
   return professionals;
+}
+
+/**
+ * Profesionales activos con al menos 1 reseña publicada, en la forma que
+ * necesita la home (FeaturedProfessional). Comparte la selección entre
+ * getFeaturedProfessionals y getTopRatedProfessionals; cada una aplica su
+ * propio orden y filtro de cantidad mínima de reseñas.
+ */
+async function getRankedProfessionalsWithPublishedReviews(
+  minReviewCount: number,
+): Promise<FeaturedProfessional[]> {
+  const candidates = await prisma.professionalProfile.findMany({
+    where: {
+      isActive: true,
+      reviewsReceived: { some: { publishedAt: { not: null } } },
+    },
+    select: {
+      id: true,
+      slug: true,
+      isVerified: true,
+      user: { select: { fullName: true, avatarUrl: true } },
+      professionalTrades: {
+        where: { isPrimary: true, trade: { isActive: true } },
+        select: { trade: { select: { name: true } } },
+        take: 1,
+      },
+      coverageAreas: {
+        select: { department: { select: { name: true } } },
+        take: 1,
+      },
+    },
+  });
+
+  const scores = await getWeightedScores(candidates.map((c) => c.id));
+
+  const featured: FeaturedProfessional[] = [];
+  for (const candidate of candidates) {
+    const primaryTrade = candidate.professionalTrades[0]?.trade.name ?? null;
+    const department = candidate.coverageAreas[0]?.department.name ?? null;
+    const scoreEntry = scores.get(candidate.id) ?? null;
+
+    if (!primaryTrade || !department || !scoreEntry) {
+      continue;
+    }
+    if (scoreEntry.reviewCount < minReviewCount) {
+      continue;
+    }
+
+    featured.push({
+      id: candidate.id,
+      slug: candidate.slug,
+      fullName: candidate.user.fullName,
+      avatarUrl: candidate.user.avatarUrl,
+      isVerified: candidate.isVerified,
+      primaryTrade,
+      department,
+      averageRating: scoreEntry.score,
+      reviewCount: scoreEntry.reviewCount,
+    });
+  }
+
+  return featured;
+}
+
+/**
+ * Top profesionales para la home: verificados primero, luego por score
+ * ponderado DESC, luego por cantidad de reseñas DESC. Requiere al menos
+ * 1 reseña publicada.
+ */
+export async function getFeaturedProfessionals(
+  limit: number,
+): Promise<FeaturedProfessional[]> {
+  const ranked = await getRankedProfessionalsWithPublishedReviews(1);
+
+  return ranked
+    .sort((a, b) => {
+      if (a.isVerified !== b.isVerified) {
+        return a.isVerified ? -1 : 1;
+      }
+      if (b.averageRating !== a.averageRating) {
+        return b.averageRating - a.averageRating;
+      }
+      return b.reviewCount - a.reviewCount;
+    })
+    .slice(0, limit);
+}
+
+/**
+ * Los profesionales con mayor score ponderado, con mínimo 3 reseñas
+ * publicadas (para que el score sea representativo). Para la home.
+ */
+export async function getTopRatedProfessionals(
+  limit: number,
+): Promise<FeaturedProfessional[]> {
+  const ranked = await getRankedProfessionalsWithPublishedReviews(3);
+
+  return ranked
+    .sort((a, b) => b.averageRating - a.averageRating || b.reviewCount - a.reviewCount)
+    .slice(0, limit);
+}
+
+/** Conteos globales para el hero de la home. */
+export async function getPlatformStats(): Promise<PlatformStats> {
+  const [totalProfessionals, totalReviews, verifiedProfessionals] =
+    await Promise.all([
+      prisma.professionalProfile.count({ where: { isActive: true } }),
+      prisma.review.count({ where: { publishedAt: { not: null } } }),
+      prisma.professionalProfile.count({ where: { isVerified: true } }),
+    ]);
+
+  return { totalProfessionals, totalReviews, verifiedProfessionals };
 }
 
 const MAX_PROFILE_REVIEWS_LOADED = 200;

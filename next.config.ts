@@ -19,6 +19,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "3mb",
     },
   },
+  // Avatares y fotos de portafolio se suben a Supabase Storage; next/image
+  // necesita el dominio explícitamente permitido para optimizarlas.
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }],
+  },
 };
 
 export default withPWA(nextConfig);

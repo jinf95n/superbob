@@ -1,93 +1,99 @@
+import Image from "next/image";
 import Link from "next/link";
-import { ProfessionalSearchItem } from "@/modules/professionals/types";
-import { StarRating } from "./StarRating";
+import { FeaturedProfessional } from "@/modules/professionals/types";
 
 type ProfessionalCardProps = {
-  professional: ProfessionalSearchItem;
+  professional: FeaturedProfessional;
+  className?: string;
 };
 
-const MAX_VISIBLE_DEPARTMENTS = 2;
+function getInitials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+}
 
-export function ProfessionalCard({ professional }: ProfessionalCardProps) {
-  const visibleDepartments = professional.departments.slice(
-    0,
-    MAX_VISIBLE_DEPARTMENTS,
-  );
-  const extraDepartmentCount =
-    professional.departments.length - visibleDepartments.length;
+export function ProfessionalCard({
+  professional,
+  className = "",
+}: ProfessionalCardProps) {
+  const roundedRating = Math.round(professional.averageRating);
 
   return (
-    <Link
-      href={`/p/${professional.slug}`}
-      className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
+    <div
+      className={`relative rounded-2xl border border-sb-border bg-white p-5 ${className}`}
     >
-      <div className="flex items-center gap-3">
+      {professional.isVerified && (
+        <span className="absolute right-4 top-4 rounded-full bg-[#EAF3DE] px-2.5 py-1 text-[11px] font-medium text-[#3B6D11]">
+          ✓ Verificado
+        </span>
+      )}
+
+      <div className="flex items-center gap-3 pr-16">
         {professional.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={professional.avatarUrl}
             alt={professional.fullName}
-            className="h-16 w-16 rounded-full object-cover"
+            width={48}
+            height={48}
+            sizes="48px"
+            className="h-12 w-12 shrink-0 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sb-card-blue text-xl font-semibold text-sb-blue">
-            {professional.fullName.charAt(0).toUpperCase()}
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sb-blue/10 font-display text-[18px] font-bold text-sb-blue">
+            {getInitials(professional.fullName)}
           </div>
         )}
-
-        <div>
-          <p className="font-display flex items-center gap-1 text-[18px] font-semibold text-sb-text">
+        <div className="min-w-0">
+          <p className="truncate font-display text-[15px] font-semibold text-sb-text">
             {professional.fullName}
-            {professional.isVerified && (
-              <span
-                title="Profesional verificado"
-                className="text-sb-success"
-                aria-label="Verificado"
-              >
-                ✓
-              </span>
-            )}
           </p>
-          {professional.primaryTrade && (
-            <span className="mt-1 inline-block rounded-full bg-sb-card-orange px-3 py-0.5 text-[13px] font-medium text-sb-orange">
-              {professional.primaryTrade.name}
-            </span>
-          )}
+          <p className="truncate text-[13px] text-sb-muted">
+            {professional.primaryTrade}
+          </p>
         </div>
       </div>
 
-      <StarRating
-        score={professional.score}
-        reviewCount={professional.reviewCount}
-      />
+      <p className="mt-3 flex items-center gap-1.5 text-[13px] text-sb-muted">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          width="14"
+          height="14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="shrink-0"
+        >
+          <path d="M12 21s-7-7.2-7-12a7 7 0 1 1 14 0c0 4.8-7 12-7 12Z" />
+          <circle cx="12" cy="9" r="2.5" />
+        </svg>
+        {professional.department}
+      </p>
 
-      {professional.bio && (
-        <p className="line-clamp-2 text-sm text-sb-muted">
-          {professional.bio}
-        </p>
-      )}
-
-      {visibleDepartments.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {visibleDepartments.map((department) => (
-            <span
-              key={department.slug}
-              className="rounded-full bg-sb-card-blue px-2.5 py-0.5 text-xs font-medium text-sb-blue"
-            >
-              {department.name}
-            </span>
-          ))}
-          {extraDepartmentCount > 0 && (
-            <span className="rounded-full bg-sb-card-blue px-2.5 py-0.5 text-xs font-medium text-sb-blue">
-              +{extraDepartmentCount}
-            </span>
-          )}
+      {professional.reviewCount > 0 && (
+        <div className="mt-3 flex items-center gap-2">
+          <span aria-hidden="true" className="text-sb-orange">
+            {"★".repeat(roundedRating)}
+            {"☆".repeat(5 - roundedRating)}
+          </span>
+          <span className="font-display text-[16px] font-bold text-sb-text">
+            {professional.averageRating.toFixed(1)}
+          </span>
+          <span className="text-[13px] text-sb-muted">
+            ({professional.reviewCount} reseña
+            {professional.reviewCount === 1 ? "" : "s"})
+          </span>
         </div>
       )}
 
-      <span className="mt-1 flex h-11 w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white">
+      <Link
+        href={`/p/${professional.slug}`}
+        className="mt-4 flex h-9 w-full items-center justify-center rounded border border-sb-blue text-[14px] font-medium text-sb-blue transition-colors duration-150 ease-in-out hover:bg-sb-blue/5"
+      >
         Ver perfil
-      </span>
-    </Link>
+      </Link>
+    </div>
   );
 }

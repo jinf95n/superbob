@@ -1,8 +1,35 @@
 "use client";
 
 import { useMemo, useState, type ChangeEvent } from "react";
-import { ProfessionalSearchItem } from "@/modules/professionals/types";
+import {
+  FeaturedProfessional,
+  ProfessionalSearchItem,
+} from "@/modules/professionals/types";
 import { ProfessionalCard } from "./ProfessionalCard";
+
+/**
+ * ProfessionalCard espera la forma de FeaturedProfessional (oficio y
+ * departamento como string único, rating no nulo) — distinta de
+ * ProfessionalSearchItem, que lista TODOS los profesionales activos de
+ * /search incluso sin reseñas. Solo adapta la forma de los datos para
+ * renderizar la card; no cambia el filtrado ni los resultados de /search.
+ */
+function toCardProfessional(
+  professional: ProfessionalSearchItem,
+): FeaturedProfessional {
+  return {
+    id: professional.id,
+    slug: professional.slug,
+    fullName: professional.fullName,
+    avatarUrl: professional.avatarUrl,
+    isVerified: professional.isVerified,
+    primaryTrade: professional.primaryTrade?.name ?? "Profesional",
+    department:
+      professional.departments[0]?.name ?? "Zona no especificada",
+    averageRating: professional.score ?? 0,
+    reviewCount: professional.reviewCount,
+  };
+}
 
 export type TradeSearchOption = {
   id: string;
@@ -277,7 +304,10 @@ export function SearchClient({
 
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filteredProfessionals.map((professional) => (
-          <ProfessionalCard key={professional.id} professional={professional} />
+          <ProfessionalCard
+            key={professional.id}
+            professional={toCardProfessional(professional)}
+          />
         ))}
       </div>
 

@@ -49,3 +49,22 @@ export async function getProvincesWithDepartments(): Promise<
     },
   });
 }
+
+export type SanJuanDepartmentOption = {
+  name: string;
+  slug: string;
+};
+
+/**
+ * Departamentos de San Juan, para el buscador de la home (Fase 1 solo
+ * opera en San Juan).
+ */
+export async function getSanJuanDepartments(): Promise<
+  SanJuanDepartmentOption[]
+> {
+  return prisma.department.findMany({
+    where: { province: { name: "San Juan" } },
+    orderBy: { name: "asc" },
+    select: { name: true, slug: true },
+  });
+}

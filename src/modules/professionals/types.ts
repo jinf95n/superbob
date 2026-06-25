@@ -13,6 +13,26 @@ export type ProfessionalDepartmentSummary = {
   slug: string;
 };
 
+// ---------- Home pública ----------
+
+export type FeaturedProfessional = {
+  id: string;
+  slug: string;
+  fullName: string;
+  avatarUrl: string | null;
+  isVerified: boolean;
+  primaryTrade: string;
+  department: string;
+  averageRating: number;
+  reviewCount: number;
+};
+
+export type PlatformStats = {
+  totalProfessionals: number;
+  totalReviews: number;
+  verifiedProfessionals: number;
+};
+
 export type ProfessionalSearchItem = {
   id: string;
   slug: string;
