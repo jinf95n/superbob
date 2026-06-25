@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import {
   getContactMetrics,
   getProfessionalBadges,
+  getProfessionalContactPhone,
   getProfessionalProfileBySlug,
   getProfileCompleteness,
   getSuperbobScoreBreakdown,
@@ -37,21 +38,24 @@ export default async function ProfessionalPublicProfilePage({
   const { slug } = await params;
   const { updated } = await searchParams;
 
-  const professional = await getProfessionalProfileBySlug(slug);
+  const requestHeaders = await headers();
+  const [professional, session] = await Promise.all([
+    getProfessionalProfileBySlug(slug),
+    auth.api.getSession({ headers: requestHeaders }),
+  ]);
   if (!professional) {
     notFound();
   }
 
-  const requestHeaders = await headers();
-  const session = await auth.api.getSession({ headers: requestHeaders });
   const isOwner = session?.user.id === professional.userId;
 
-  const [badges, contactMetrics, scoreBreakdown, completeness] =
+  const [badges, contactMetrics, scoreBreakdown, completeness, contactPhone] =
     await Promise.all([
       getProfessionalBadges(professional.id),
       getContactMetrics(professional.id),
       getSuperbobScoreBreakdown(professional.id),
       isOwner ? getProfileCompleteness(professional.id) : Promise.resolve(null),
+      session ? getProfessionalContactPhone(professional.id) : Promise.resolve(null),
     ]);
 
   const host = requestHeaders.get("host");
@@ -122,7 +126,11 @@ export default async function ProfessionalPublicProfilePage({
           )}
 
           <div className="mt-5">
-            <PhoneReveal professionalId={professional.id} source="profile" />
+            <PhoneReveal
+              professionalId={professional.id}
+              source="profile"
+              preloadedPhone={contactPhone}
+            />
           </div>
         </section>
 
