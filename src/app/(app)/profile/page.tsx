@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getUserAccountProfile } from "@/modules/users/queries";
-import { getProfessionalSlugByUserId } from "@/modules/professionals/queries";
+import { getActiveProfessionalSlugByUserId } from "@/modules/professionals/queries";
 import { ProfileForm } from "./ProfileForm";
 
 export default async function ProfilePage() {
@@ -13,7 +13,7 @@ export default async function ProfilePage() {
 
   const [accountProfile, professionalSlug] = await Promise.all([
     getUserAccountProfile(session.user.id),
-    getProfessionalSlugByUserId(session.user.id),
+    getActiveProfessionalSlugByUserId(session.user.id),
   ]);
 
   if (!accountProfile) {

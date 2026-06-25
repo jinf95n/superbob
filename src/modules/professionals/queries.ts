@@ -12,102 +12,130 @@ import {
   ProfessionalFullProfile,
   ProfessionalProfileForEdit,
   ProfessionalReviewForProfile,
-  ProfessionalSearchItem,
   ProfessionalTradeForProfile,
   ProfileCompleteness,
   ProfileCompletenessLevel,
   ProfileCompletionItem,
+  SearchableProfessional,
   SuperbobScoreBreakdown,
   SuperbobScoreComponent,
 } from "./types";
 
+const PROFILE_SCORE_POINTS = {
+  avatar: 10,
+  bio: 10,
+  primaryTrade: 10,
+  coverage: 10,
+  contactPhone: 15,
+  threePhotos: 10,
+  firstReview: 10,
+  verified: 15,
+  fiveReviews: 10,
+};
+
 /**
  * Todos los profesionales activos, sin filtrar ni paginar: el filtrado por
- * oficio/zona se hace 100% en memoria en el cliente (ver SearchClient.tsx).
+ * texto y por los filtros del panel se hace 100% en memoria en el cliente
+ * (ver SearchResults.tsx).
  */
-export async function getActiveProfessionalsForSearch(): Promise<
-  ProfessionalSearchItem[]
+export async function getAllProfessionalsForSearch(): Promise<
+  SearchableProfessional[]
 > {
-  const matches = await prisma.professionalProfile.findMany({
+  const professionals = await prisma.professionalProfile.findMany({
     where: { isActive: true },
     select: {
       id: true,
       slug: true,
       bio: true,
+      contactPhone: true,
       isVerified: true,
+      isActive: true,
       createdAt: true,
       user: { select: { fullName: true, avatarUrl: true } },
       professionalTrades: {
         where: { trade: { isActive: true } },
         select: {
           isPrimary: true,
-          trade: { select: { name: true, slug: true } },
+          yearsExperience: true,
+          trade: {
+            select: {
+              name: true,
+              slug: true,
+              category: { select: { name: true } },
+            },
+          },
         },
       },
       coverageAreas: {
-        select: {
-          department: { select: { name: true, slug: true } },
-        },
+        select: { department: { select: { name: true } } },
       },
+      _count: { select: { workPhotos: true } },
     },
   });
 
-  const scores = await getWeightedScores(
-    matches.map((professional) => professional.id),
+  const professionalIds = professionals.map((professional) => professional.id);
+
+  const [scores, completedCounts] = await Promise.all([
+    getWeightedScores(professionalIds),
+    prisma.workRecord.groupBy({
+      by: ["professionalId"],
+      where: { professionalId: { in: professionalIds }, type: "completed" },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const completedCountByProfessional = new Map(
+    completedCounts.map((row) => [row.professionalId, row._count._all]),
   );
 
-  const ranked = matches
-    .map((professional) => {
-      const primaryTrade =
-        professional.professionalTrades.find((pt) => pt.isPrimary)?.trade ??
-        null;
-      const scoreEntry = scores.get(professional.id);
+  return professionals.map((professional) => {
+    const primaryTradeEntry = professional.professionalTrades.find(
+      (pt) => pt.isPrimary,
+    );
+    const primaryTrade = primaryTradeEntry
+      ? {
+          name: primaryTradeEntry.trade.name,
+          slug: primaryTradeEntry.trade.slug,
+          categoryName: primaryTradeEntry.trade.category.name,
+        }
+      : null;
 
-      const item: ProfessionalSearchItem & { createdAt: Date } = {
-        id: professional.id,
-        slug: professional.slug,
-        fullName: professional.user.fullName,
-        avatarUrl: professional.user.avatarUrl,
-        bio: professional.bio,
-        isVerified: professional.isVerified,
-        primaryTrade,
-        trades: professional.professionalTrades.map((pt) => pt.trade),
-        departments: professional.coverageAreas.map(
-          (coverage) => coverage.department,
-        ),
-        score: scoreEntry?.score ?? null,
-        reviewCount: scoreEntry?.reviewCount ?? 0,
-        createdAt: professional.createdAt,
-      };
+    const scoreEntry = scores.get(professional.id) ?? null;
+    const reviewCount = scoreEntry?.reviewCount ?? 0;
+    const hasBio = Boolean(professional.bio && professional.bio.trim().length > 20);
 
-      return item;
-    })
-    .sort((a, b) => {
-      if (a.score === null && b.score === null) {
-        return b.createdAt.getTime() - a.createdAt.getTime();
-      }
-      if (a.score === null) return 1;
-      if (b.score === null) return -1;
-      return b.score - a.score;
-    });
+    const profileScore =
+      (professional.user.avatarUrl ? PROFILE_SCORE_POINTS.avatar : 0) +
+      (hasBio ? PROFILE_SCORE_POINTS.bio : 0) +
+      (primaryTrade ? PROFILE_SCORE_POINTS.primaryTrade : 0) +
+      (professional.coverageAreas.length > 0 ? PROFILE_SCORE_POINTS.coverage : 0) +
+      (professional.contactPhone ? PROFILE_SCORE_POINTS.contactPhone : 0) +
+      (professional._count.workPhotos >= 3 ? PROFILE_SCORE_POINTS.threePhotos : 0) +
+      (reviewCount >= 1 ? PROFILE_SCORE_POINTS.firstReview : 0) +
+      (professional.isVerified ? PROFILE_SCORE_POINTS.verified : 0) +
+      (reviewCount >= 5 ? PROFILE_SCORE_POINTS.fiveReviews : 0);
 
-  const professionals: ProfessionalSearchItem[] = ranked.map(
-    (professional) => ({
+    return {
       id: professional.id,
       slug: professional.slug,
-      fullName: professional.fullName,
-      avatarUrl: professional.avatarUrl,
-      bio: professional.bio,
+      fullName: professional.user.fullName,
+      avatarUrl: professional.user.avatarUrl,
       isVerified: professional.isVerified,
-      primaryTrade: professional.primaryTrade,
-      trades: professional.trades,
-      departments: professional.departments,
-      score: professional.score,
-      reviewCount: professional.reviewCount,
-    }),
-  );
-
-  return professionals;
+      isActive: professional.isActive,
+      createdAt: professional.createdAt,
+      primaryTrade,
+      allTrades: professional.professionalTrades.map((pt) => pt.trade.name),
+      departments: professional.coverageAreas.map(
+        (coverage) => coverage.department.name,
+      ),
+      averageRating: scoreEntry?.score ?? 0,
+      reviewCount,
+      completedJobsCount: completedCountByProfessional.get(professional.id) ?? 0,
+      yearsExperience: primaryTradeEntry?.yearsExperience ?? 0,
+      profileScore,
+      bio: professional.bio,
+    };
+  });
 }
 
 /**
@@ -839,6 +867,26 @@ export async function getProfessionalSlugByUserId(
   });
 
   return professional?.slug ?? null;
+}
+
+/**
+ * Slug del perfil profesional solo si está activo. Usado en /profile para
+ * no ofrecer el link público a "Ver mi perfil profesional" cuando el
+ * profesional fue desactivado (is_active = false).
+ */
+export async function getActiveProfessionalSlugByUserId(
+  userId: string,
+): Promise<string | null> {
+  const professional = await prisma.professionalProfile.findUnique({
+    where: { userId },
+    select: { slug: true, isActive: true },
+  });
+
+  if (!professional || !professional.isActive) {
+    return null;
+  }
+
+  return professional.slug;
 }
 
 export async function getTotalProfessionalsCount(): Promise<number> {

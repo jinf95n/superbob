@@ -5,7 +5,6 @@ import { getUserAccountProfile, getUserRole } from "@/modules/users/queries";
 import { getProfessionalSlugByUserId } from "@/modules/professionals/queries";
 import { Button } from "@/components/ui/Button";
 import { UserMenu } from "./UserMenu";
-import { HeaderNavLinks } from "./HeaderNavLinks";
 
 export async function Header() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -27,9 +26,7 @@ export async function Header() {
         SUPERBOB
       </Link>
 
-      <nav className="flex items-center gap-3">
-        <HeaderNavLinks isAdmin={role === "admin"} />
-
+      <nav className="flex items-center">
         {session && accountProfile ? (
           <UserMenu
             fullName={accountProfile.fullName}

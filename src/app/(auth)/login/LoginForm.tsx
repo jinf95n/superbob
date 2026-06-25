@@ -4,21 +4,36 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { loginAction } from "@/modules/users/actions";
 import { AuthActionState } from "@/modules/users/types";
-import { authClient } from "@/lib/auth-client";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { GoogleSignInButton } from "@/components/shared/GoogleSignInButton";
 
 const initialState: AuthActionState = {};
+
+const INPUT_CLASSES =
+  "w-full rounded-[10px] border-[1.5px] border-sb-border px-3.5 py-3 text-[15px] text-sb-text placeholder:text-sb-muted/60 outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10";
 
 export function LoginForm() {
   const [state, formAction] = useActionState(loginAction, initialState);
 
   return (
-    <main className="w-full max-w-sm p-8">
-      <h1 className="text-2xl font-bold">Iniciar sesión</h1>
+    <main className="w-full max-w-[400px] px-6 py-8 lg:px-8 lg:py-12">
+      <p className="font-display text-[24px] font-extrabold text-sb-blue lg:hidden">
+        SUPERBOB
+      </p>
 
-      <form action={formAction} className="mt-6 flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="email" className="text-sm font-medium">
+      <h1 className="font-display mt-6 text-[26px] font-bold text-sb-text lg:mt-0">
+        Bienvenido de nuevo
+      </h1>
+      <p className="mt-1.5 text-[14px] text-sb-muted">
+        Ingresá con tu cuenta para continuar.
+      </p>
+
+      <form action={formAction} className="mt-8 flex flex-col gap-4">
+        <div>
+          <label
+            htmlFor="email"
+            className="mb-1.5 block text-[13px] font-medium text-sb-text"
+          >
             Email
           </label>
           <input
@@ -26,12 +41,15 @@ export function LoginForm() {
             name="email"
             type="email"
             required
-            className="rounded border border-neutral-300 px-3 py-2"
+            className={INPUT_CLASSES}
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor="password" className="text-sm font-medium">
+        <div>
+          <label
+            htmlFor="password"
+            className="mb-1.5 block text-[13px] font-medium text-sb-text"
+          >
             Contraseña
           </label>
           <input
@@ -39,35 +57,31 @@ export function LoginForm() {
             name="password"
             type="password"
             required
-            className="rounded border border-neutral-300 px-3 py-2"
+            className={INPUT_CLASSES}
           />
         </div>
 
-        {state.error && (
-          <p className="text-sm text-sb-error">{state.error}</p>
-        )}
+        {state.error && <p className="text-sm text-sb-error">{state.error}</p>}
 
         <SubmitButton
           pendingLabel="Ingresando..."
-          className="rounded bg-neutral-900 px-4 py-2 text-white"
+          className="font-display mt-5 w-full rounded-[10px] bg-sb-blue py-[13px] text-[15px] font-semibold text-white transition-colors duration-150 ease-in-out hover:bg-sb-blue/90"
         >
           Ingresar
         </SubmitButton>
       </form>
 
-      <button
-        type="button"
-        onClick={() =>
-          authClient.signIn.social({ provider: "google", callbackURL: "/dashboard" })
-        }
-        className="mt-4 w-full rounded border border-neutral-300 px-4 py-2"
-      >
-        Continuar con Google
-      </button>
+      <div className="my-5 flex items-center gap-3">
+        <div className="h-px flex-1 bg-sb-border" />
+        <span className="text-sm text-sb-muted">o</span>
+        <div className="h-px flex-1 bg-sb-border" />
+      </div>
 
-      <p className="mt-4 text-sm text-neutral-600">
+      <GoogleSignInButton />
+
+      <p className="mt-4 text-[14px] text-sb-muted">
         ¿No tenés cuenta?{" "}
-        <Link href="/register" className="underline">
+        <Link href="/register" className="text-sb-blue hover:underline">
           Creá una
         </Link>
       </p>
