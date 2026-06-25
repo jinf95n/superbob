@@ -10,6 +10,7 @@ import {
   getSuperbobScoreBreakdown,
 } from "@/modules/professionals/queries";
 import { checkUserHasPendingReview } from "@/modules/reviews/queries";
+import { checkUserHadContact } from "@/modules/contacts/queries";
 import { PhoneReveal } from "@/components/shared/PhoneReveal";
 import { ProfileAvatarWithModal } from "@/components/shared/ProfileAvatarWithModal";
 import { ReportModal } from "@/components/shared/ReportModal";
@@ -52,7 +53,7 @@ export default async function ProfessionalPublicProfilePage({
   const isOwner = session?.user.id === professional.userId;
   const isClient = session && !isOwner;
 
-  const [badges, contactMetrics, scoreBreakdown, completeness, contactPhone, pendingReview] =
+  const [badges, contactMetrics, scoreBreakdown, completeness, contactPhone, pendingReview, hasContact] =
     await Promise.all([
       getProfessionalBadges(professional.id),
       getContactMetrics(professional.id),
@@ -62,6 +63,9 @@ export default async function ProfessionalPublicProfilePage({
       isClient
         ? checkUserHasPendingReview(session.user.id, professional.id)
         : Promise.resolve(null),
+      isClient
+        ? checkUserHadContact(session.user.id, professional.id)
+        : Promise.resolve(false),
     ]);
 
   const host = requestHeaders.get("host");
@@ -146,12 +150,30 @@ export default async function ProfessionalPublicProfilePage({
       <div className="mx-auto max-w-5xl px-4 py-6">
 
         {/* Banners full-width */}
-        {(updated === "1" || pendingReview) && (
+        {(updated === "1" || pendingReview || hasContact) && (
           <div className="mb-6 flex flex-col gap-3">
             {updated === "1" && (
               <p className="rounded-2xl bg-sb-card-blue p-4 text-center text-[15px] text-sb-text">
                 Guardado. Tu perfil ya está actualizado.
               </p>
+            )}
+            {hasContact && !pendingReview && (
+              <a
+                href={`/reviews/new?professional=${professional.id}`}
+                className="flex items-center justify-between rounded-2xl bg-sb-card-blue p-4"
+              >
+                <div>
+                  <p className="text-[15px] font-semibold text-sb-blue">
+                    ¿Trabajaste con {professional.fullName.split(" ")[0]}?
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-sb-muted">
+                    Dejá tu reseña y ayudá a otros a elegir bien.
+                  </p>
+                </div>
+                <span className="ml-4 shrink-0 whitespace-nowrap rounded-xl bg-sb-blue px-4 py-2 text-[14px] font-medium text-white">
+                  Dejar reseña
+                </span>
+              </a>
             )}
             {pendingReview && (
               <a

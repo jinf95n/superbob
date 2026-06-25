@@ -115,3 +115,14 @@ export async function getContactEventsCountForProfessionalSince(
     where: { professionalId, createdAt: { gte: since } },
   });
 }
+
+export async function checkUserHadContact(
+  clientId: string,
+  professionalId: string,
+): Promise<boolean> {
+  const event = await prisma.contactEvent.findFirst({
+    where: { clientId, professionalId },
+    select: { id: true },
+  });
+  return !!event;
+}
