@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginAction } from "@/modules/users/actions";
@@ -18,9 +18,11 @@ export function LoginForm() {
   const [state, formAction] = useActionState(loginAction, initialState);
   const router = useRouter();
   const { toast } = useToast();
+  const toastShownRef = useRef(false);
 
   useEffect(() => {
-    if (state.success && state.redirectTo) {
+    if (state.success && state.redirectTo && !toastShownRef.current) {
+      toastShownRef.current = true;
       toast.success("Bienvenido de nuevo.");
       router.push(state.redirectTo);
     }
@@ -93,7 +95,7 @@ export function LoginForm() {
       <p className="mt-4 text-[14px] text-sb-muted">
         ¿No tenés cuenta?{" "}
         <Link href="/register" className="text-sb-blue hover:underline">
-          Creá una
+          Creá una cuenta
         </Link>
       </p>
     </main>

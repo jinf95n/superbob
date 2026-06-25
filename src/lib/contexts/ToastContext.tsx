@@ -5,6 +5,7 @@ import {
   ReactNode,
   useCallback,
   useContext,
+  useMemo,
   useState,
 } from "react";
 import { ToastContainer, ToastItem, ToastType } from "@/components/ui/Toast";
@@ -49,14 +50,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
 
-  const toast: ToastApi = {
-    success: (message) => show("success", message),
-    error: (message) => show("error", message),
-    info: (message) => show("info", message),
-  };
+  const toast = useMemo<ToastApi>(
+    () => ({
+      success: (message) => show("success", message),
+      error: (message) => show("error", message),
+      info: (message) => show("info", message),
+    }),
+    [show],
+  );
+
+  const contextValue = useMemo(() => ({ toast }), [toast]);
 
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <ToastContainer toasts={toasts} leavingIds={leavingIds} onDismiss={dismiss} />
     </ToastContext.Provider>
