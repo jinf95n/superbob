@@ -1,11 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { loginAction } from "@/modules/users/actions";
 import { AuthActionState } from "@/modules/users/types";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { GoogleSignInButton } from "@/components/shared/GoogleSignInButton";
+import { useToast } from "@/lib/contexts/ToastContext";
 
 const initialState: AuthActionState = {};
 
@@ -14,6 +16,15 @@ const INPUT_CLASSES =
 
 export function LoginForm() {
   const [state, formAction] = useActionState(loginAction, initialState);
+  const router = useRouter();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (state.success && state.redirectTo) {
+      toast.success("Bienvenido de nuevo.");
+      router.push(state.redirectTo);
+    }
+  }, [state, router, toast]);
 
   return (
     <main className="w-full max-w-[400px] px-6 py-8 lg:px-8 lg:py-12">

@@ -58,7 +58,7 @@ export async function createProfessionalProfileAction(
   for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
     const slug = `${baseSlug}-${randomSlugSuffix()}`;
     try {
-      await prisma.$transaction(async (tx) => {
+      const profileId = await prisma.$transaction(async (tx) => {
         const profile = await tx.professionalProfile.create({
           data: {
             userId: session.user.id,
@@ -94,9 +94,11 @@ export async function createProfessionalProfileAction(
             departmentId,
           })),
         });
+
+        return profile.id;
       });
 
-      redirect("/professional/edit");
+      return { professionalId: profileId };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

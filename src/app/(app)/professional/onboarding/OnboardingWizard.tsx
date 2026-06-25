@@ -1,12 +1,15 @@
 "use client";
 
 import { useMemo, useState, useTransition, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import { TradeCategoryWithTrades } from "@/modules/trades/queries";
 import { ProvinceWithDepartments } from "@/modules/geography/queries";
 import { createProfessionalProfileAction } from "@/modules/professionals/actions";
 import { uploadAvatarAction } from "@/modules/users/actions";
 import { Spinner } from "@/components/ui/Spinner";
 import { useServerAction } from "@/lib/hooks/useServerAction";
+import { BioBuilder } from "@/components/shared/BioBuilder";
+import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager";
 
 type SecondaryTradeRow = {
   tradeId: string;
@@ -28,12 +31,16 @@ export function OnboardingWizard({
   tradeCategories,
   provinces,
 }: OnboardingWizardProps) {
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const router = useRouter();
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Paso 1
   const [bio, setBio] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [contactPhoneError, setContactPhoneError] = useState<string | null>(
+    null,
+  );
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isUploadingAvatar, startAvatarUpload] = useTransition();
@@ -53,15 +60,23 @@ export function OnboardingWizard({
     Set<string>
   >(new Set());
 
-  // createProfessionalProfileAction redirige server-side cuando termina bien
-  // (no romper esa lógica), así que del lado del cliente solo hay pending y
-  // error visibles: el éxito se manifiesta como la navegación misma.
+  // Paso 4
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+
   const {
     execute: submitProfile,
     isPending: isSubmitting,
     isError: isSubmitError,
     error: submitError,
-  } = useServerAction(createProfessionalProfileAction);
+  } = useServerAction(createProfessionalProfileAction, {
+    onSuccess: (result) => {
+      const typed = result as { professionalId?: string };
+      if (typed.professionalId) {
+        setProfessionalId(typed.professionalId);
+        setStep(4);
+      }
+    },
+  });
 
   const departmentLookup = useMemo(() => {
     const map = new Map<string, { name: string; provinceName: string }>();
@@ -143,6 +158,11 @@ export function OnboardingWizard({
   }
 
   function goToStep2() {
+    if (!contactPhone.trim()) {
+      setContactPhoneError("El teléfono de contacto es obligatorio");
+      return;
+    }
+    setContactPhoneError(null);
     setFormError(null);
     setStep(2);
   }
@@ -156,7 +176,7 @@ export function OnboardingWizard({
     setStep(3);
   }
 
-  function handleSubmit() {
+  function handleCreateProfile() {
     if (selectedDepartmentIds.size === 0) {
       setFormError("Elegí al menos una zona de cobertura");
       return;
@@ -165,7 +185,7 @@ export function OnboardingWizard({
 
     submitProfile({
       bio: bio || undefined,
-      contactPhone: contactPhone || undefined,
+      contactPhone,
       primaryTradeId,
       primaryYearsExperience: primaryYearsExperience || undefined,
       secondaryTrades: secondaryTrades
@@ -178,9 +198,13 @@ export function OnboardingWizard({
     });
   }
 
+  function finishOnboarding() {
+    router.push("/professional/edit?welcome=1");
+  }
+
   return (
     <div className="mt-6">
-      <p className="text-sm font-medium text-neutral-500">Paso {step} de 3</p>
+      <p className="text-sm font-medium text-neutral-500">Paso {step} de 4</p>
 
       {step === 1 && (
         <section className="mt-4 flex flex-col gap-4">
@@ -223,14 +247,9 @@ export function OnboardingWizard({
             <label htmlFor="bio" className="block text-sm font-medium">
               Contanos sobre tu trabajo
             </label>
-            <textarea
-              id="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              maxLength={500}
-              rows={4}
-              className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
-            />
+            <div className="mt-2">
+              <BioBuilder initialValue={null} onChange={setBio} />
+            </div>
           </div>
 
           <div>
@@ -238,21 +257,27 @@ export function OnboardingWizard({
               htmlFor="contactPhone"
               className="block text-sm font-medium"
             >
-              Teléfono de contacto
+              Teléfono de contacto <span className="text-sb-error">*</span>
             </label>
-            <p className="text-xs text-neutral-500">
-              {accountPhone
-                ? `Tu teléfono de cuenta es ${accountPhone}. Completá esto solo si querés que los clientes te contacten a otro número.`
-                : "Completá esto si querés que los clientes te contacten a un número distinto al de tu cuenta."}
-            </p>
             <input
               id="contactPhone"
               type="tel"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) => {
+                setContactPhone(e.target.value);
+                if (contactPhoneError) setContactPhoneError(null);
+              }}
               placeholder="+54 9 11 1234-5678"
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
             />
+            <p className="mt-1 text-[12px] text-sb-muted">
+              Este número es el que verán los clientes para contactarte.
+            </p>
+            {contactPhoneError && (
+              <p className="mt-1 text-[13px] text-sb-error">
+                {contactPhoneError}
+              </p>
+            )}
           </div>
 
           <button
@@ -480,12 +505,57 @@ export function OnboardingWizard({
             </button>
             <button
               type="button"
-              onClick={handleSubmit}
+              onClick={handleCreateProfile}
               disabled={isSubmitting}
               className="flex w-full items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-white transition-colors duration-150 ease-in-out disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting && <Spinner className="h-4 w-4" />}
-              {isSubmitting ? "Guardando..." : "Finalizar"}
+              {isSubmitting ? "Guardando..." : "Siguiente"}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {step === 4 && professionalId && (
+        <section className="mt-4 flex flex-col gap-4">
+          <div>
+            <p className="text-[18px] font-semibold text-sb-text">
+              Mostrá tus trabajos
+            </p>
+            <p className="mt-1 text-[14px] text-sb-muted">
+              Las fotos de trabajos reales generan mucha más confianza que un
+              perfil sin imágenes. Podés agregar hasta 10.
+            </p>
+          </div>
+
+          <PortfolioPhotoManager initialPhotos={[]} />
+
+          <p className="text-[13px] text-sb-muted/70">
+            Este paso es opcional, podés agregar fotos después desde tu
+            panel.{" "}
+            <button
+              type="button"
+              onClick={finishOnboarding}
+              className="text-sb-blue underline"
+            >
+              Omitir este paso →
+            </button>
+          </p>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              className="w-full rounded border border-neutral-300 px-4 py-2"
+            >
+              Atrás
+            </button>
+            <button
+              type="button"
+              onClick={finishOnboarding}
+              className="w-full rounded bg-neutral-900 px-4 py-2 text-white"
+            >
+              Finalizar
             </button>
           </div>
         </section>

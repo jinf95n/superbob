@@ -41,9 +41,9 @@ export function ProfessionalSearchCard({
   const bannerColor = getTradeColor(professional.primaryTrade?.slug);
 
   return (
-    <div className="overflow-hidden rounded-2xl border-[1.5px] border-sb-border bg-white transition-colors duration-150 ease-in-out hover:border-sb-blue">
+    <div className="rounded-2xl border-[1.5px] border-sb-border bg-white transition-colors duration-150 ease-in-out hover:border-sb-blue">
       <div
-        className="relative h-[120px] overflow-hidden"
+        className="relative h-[100px] overflow-hidden rounded-t-2xl"
         style={{ backgroundColor: bannerColor }}
       >
         <div
@@ -72,20 +72,22 @@ export function ProfessionalSearchCard({
             Verificado
           </div>
         )}
+      </div>
 
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
+      <div className="flex justify-center">
+        <div className="relative -mt-10 z-10">
           {professional.avatarUrl ? (
-            <div className="h-16 w-16 overflow-hidden rounded-full border-[3px] border-white">
+            <div className="h-20 w-20 overflow-hidden rounded-full border-[3px] border-white">
               <Image
                 src={professional.avatarUrl}
                 alt={professional.fullName}
-                width={64}
-                height={64}
+                width={80}
+                height={80}
                 className="h-full w-full object-cover"
               />
             </div>
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-white bg-white">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-white bg-white">
               <span className="font-display text-xl font-bold text-sb-blue">
                 {getInitials(professional.fullName)}
               </span>
@@ -94,17 +96,17 @@ export function ProfessionalSearchCard({
         </div>
       </div>
 
-      <div className="px-4 pb-4 pt-10">
+      <div className="px-3 pb-4 pt-3">
         <div className="text-center">
           <p className="truncate font-display text-[17px] font-bold text-sb-text">
             {professional.fullName}
           </p>
-          <p className="mt-1 text-[14px] text-sb-muted">
+          <p className="mt-[2px] text-[14px] text-sb-muted">
             {professional.primaryTrade?.name ?? "Profesional"}
           </p>
 
           {firstDepartment && (
-            <p className="mt-[6px] flex items-center justify-center gap-[6px] text-[13px] text-sb-muted">
+            <p className="mt-1 flex items-center justify-center gap-[6px] text-[13px] text-sb-muted">
               <svg
                 aria-hidden="true"
                 viewBox="0 0 24 24"
@@ -118,12 +120,12 @@ export function ProfessionalSearchCard({
                 <path d="M12 21s-7-7.2-7-12a7 7 0 1 1 14 0c0 4.8-7 12-7 12Z" />
                 <circle cx="12" cy="9" r="2.5" />
               </svg>
-              {firstDepartment}
+              Atiende en {firstDepartment}
             </p>
           )}
 
           {professional.reviewCount > 0 && (
-            <div className="mt-2 flex items-center justify-center gap-[6px]">
+            <div className="mt-[6px] flex items-center justify-center gap-[6px]">
               <span className="flex items-center gap-[2px]">
                 {Array.from({ length: 5 }).map((_, index) => (
                   <StarIcon key={index} filled={index < roundedRating} />
@@ -140,8 +142,8 @@ export function ProfessionalSearchCard({
           )}
         </div>
 
-        <div className="mt-3 flex">
-          <div className="flex flex-1 flex-col items-center border-r border-sb-border">
+        <div className="mt-[10px] flex">
+          <div className="flex flex-1 flex-col items-center border-r border-sb-border py-2">
             <span className="font-display text-[16px] font-bold text-sb-text">
               {professional.completedJobsCount > 0
                 ? professional.completedJobsCount
@@ -149,7 +151,7 @@ export function ProfessionalSearchCard({
             </span>
             <span className="text-[11px] text-sb-muted">Trabajos</span>
           </div>
-          <div className="flex flex-1 flex-col items-center border-r border-sb-border">
+          <div className="flex flex-1 flex-col items-center border-r border-sb-border py-2">
             <span className="font-display text-[16px] font-bold text-sb-text">
               {professional.yearsExperience > 0
                 ? `${professional.yearsExperience} años`
@@ -157,7 +159,7 @@ export function ProfessionalSearchCard({
             </span>
             <span className="text-[11px] text-sb-muted">Experiencia</span>
           </div>
-          <div className="flex flex-1 flex-col items-center">
+          <div className="flex flex-1 flex-col items-center py-2">
             <span className="font-display text-[16px] font-bold text-sb-text">
               {sinceYear}
             </span>
@@ -165,13 +167,32 @@ export function ProfessionalSearchCard({
           </div>
         </div>
 
-        {professional.bio && (
-          <p className="mt-3 overflow-hidden text-[13px] leading-[1.5] text-sb-muted [-webkit-box-orient:vertical] [-webkit-line-clamp:2] [display:-webkit-box]">
-            {professional.bio}
-          </p>
+        {professional.latestReview ? (
+          <div className="mt-[10px] rounded-xl bg-sb-bg p-3">
+            <div className="mb-1 flex items-center gap-1">
+              <span className="text-xs text-sb-orange">
+                {"★".repeat(professional.latestReview.rating)}
+                {"☆".repeat(5 - professional.latestReview.rating)}
+              </span>
+              <span className="ml-1 text-[11px] text-sb-muted">
+                {professional.latestReview.reviewerName}
+              </span>
+            </div>
+            {professional.latestReview.comment && (
+              <p className="text-[12px] italic leading-relaxed text-sb-muted [-webkit-box-orient:vertical] [-webkit-line-clamp:2] [display:-webkit-box] overflow-hidden">
+                &quot;{professional.latestReview.comment}&quot;
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-[10px] rounded-xl bg-sb-bg p-3 text-center">
+            <p className="text-[12px] text-sb-muted">
+              Todavía sin reseñas · Sé el primero en calificarlo
+            </p>
+          </div>
         )}
 
-        <div className="mt-[14px] flex flex-col gap-2">
+        <div className="mt-3 flex flex-col gap-2">
           <Link
             href={`/p/${professional.slug}`}
             className="flex h-11 w-full items-center justify-center rounded-[10px] bg-sb-blue text-[14px] font-semibold text-white"

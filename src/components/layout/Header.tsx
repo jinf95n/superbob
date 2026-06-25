@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
@@ -19,11 +20,17 @@ export async function Header() {
 
   return (
     <header className="flex items-center justify-between border-b border-sb-border bg-white px-4 py-3">
-      <Link
-        href="/"
-        className="font-display text-xl font-bold text-sb-blue"
-      >
-        SUPERBOB
+      <Link href="/" className="flex items-center gap-2">
+        <Image
+          src="/images/isotipo.png"
+          alt="SUPERBOB"
+          width={32}
+          height={32}
+          className="object-contain"
+        />
+        <span className="font-display text-xl font-bold tracking-tight text-sb-blue">
+          SUPERBOB
+        </span>
       </Link>
 
       <nav className="flex items-center">

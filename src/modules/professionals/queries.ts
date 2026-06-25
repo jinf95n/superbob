@@ -70,6 +70,16 @@ export async function getAllProfessionalsForSearch(): Promise<
         select: { department: { select: { name: true } } },
       },
       _count: { select: { workPhotos: true } },
+      reviewsReceived: {
+        where: { publishedAt: { not: null } },
+        orderBy: { publishedAt: "desc" },
+        take: 1,
+        select: {
+          rating: true,
+          comment: true,
+          reviewer: { select: { fullName: true } },
+        },
+      },
     },
   });
 
@@ -133,7 +143,15 @@ export async function getAllProfessionalsForSearch(): Promise<
       completedJobsCount: completedCountByProfessional.get(professional.id) ?? 0,
       yearsExperience: primaryTradeEntry?.yearsExperience ?? 0,
       profileScore,
-      bio: professional.bio,
+      latestReview: professional.reviewsReceived[0]
+        ? {
+            rating: professional.reviewsReceived[0].rating,
+            comment: professional.reviewsReceived[0].comment,
+            reviewerName: formatReviewerDisplayName(
+              professional.reviewsReceived[0].reviewer.fullName,
+            ),
+          }
+        : null,
     };
   });
 }

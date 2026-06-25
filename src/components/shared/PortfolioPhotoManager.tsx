@@ -7,10 +7,16 @@ import {
 } from "@/modules/photos/actions";
 import { PortfolioPhotoItem } from "@/modules/photos/types";
 import { Spinner } from "@/components/ui/Spinner";
-import { useServerAction } from "@/lib/hooks/useServerAction";
 
 const MAX_PORTFOLIO_PHOTOS = 10;
 const UPLOAD_SUCCESS_DURATION_MS = 800;
+
+type PendingUpload = {
+  id: string;
+  previewUrl: string;
+  status: "uploading" | "success" | "error";
+  error: string | null;
+};
 
 type PortfolioPhotoManagerProps = {
   initialPhotos: PortfolioPhotoItem[];
@@ -20,66 +26,93 @@ export function PortfolioPhotoManager({
   initialPhotos,
 }: PortfolioPhotoManagerProps) {
   const [photos, setPhotos] = useState(initialPhotos);
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
+  const [truncatedNotice, setTruncatedNotice] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(
-    null,
-  );
   const [, startDelete] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const atLimit = photos.length >= MAX_PORTFOLIO_PHOTOS;
-
-  const {
-    execute: runUpload,
-    isPending: isUploading,
-    isSuccess: isUploadSuccess,
-    isError: isUploadError,
-    error: uploadError,
-  } = useServerAction(uploadPortfolioPhotoAction, {
-    successDuration: UPLOAD_SUCCESS_DURATION_MS,
-    onSuccess: (result) => {
-      const typed = result as { photo?: PortfolioPhotoItem };
-      // Mantenemos el preview con el check de éxito visible durante
-      // UPLOAD_SUCCESS_DURATION_MS y recién después lo cambiamos por la
-      // foto real en la grilla, para no mostrar ambas a la vez.
-      setTimeout(() => {
-        if (typed.photo) {
-          setPhotos((prev) => [...prev, typed.photo!]);
-        }
-        setPendingPreviewUrl((current) => {
-          if (current) URL.revokeObjectURL(current);
-          return null;
-        });
-      }, UPLOAD_SUCCESS_DURATION_MS);
-    },
-    onError: () => {
-      setPendingPreviewUrl((current) => {
-        if (current) URL.revokeObjectURL(current);
-        return null;
-      });
-    },
-  });
+  const atLimit = photos.length + pendingUploads.length >= MAX_PORTFOLIO_PHOTOS;
 
   function uploadFile(file: File) {
-    setPendingPreviewUrl(URL.createObjectURL(file));
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const previewUrl = URL.createObjectURL(file);
+    setPendingUploads((prev) => [
+      ...prev,
+      { id, previewUrl, status: "uploading", error: null },
+    ]);
 
     const formData = new FormData();
     formData.set("photo", file);
-    runUpload(formData);
+
+    uploadPortfolioPhotoAction(formData)
+      .then((result) => {
+        if (result.error || !result.photo) {
+          setPendingUploads((prev) =>
+            prev.map((upload) =>
+              upload.id === id
+                ? { ...upload, status: "error", error: result.error ?? null }
+                : upload,
+            ),
+          );
+          return;
+        }
+
+        const photo = result.photo;
+        setPendingUploads((prev) =>
+          prev.map((upload) =>
+            upload.id === id ? { ...upload, status: "success" } : upload,
+          ),
+        );
+
+        setTimeout(() => {
+          setPhotos((prev) => [...prev, photo]);
+          setPendingUploads((prev) => {
+            const target = prev.find((upload) => upload.id === id);
+            if (target) URL.revokeObjectURL(target.previewUrl);
+            return prev.filter((upload) => upload.id !== id);
+          });
+        }, UPLOAD_SUCCESS_DURATION_MS);
+      })
+      .catch(() => {
+        setPendingUploads((prev) =>
+          prev.map((upload) =>
+            upload.id === id
+              ? {
+                  ...upload,
+                  status: "error",
+                  error: "No pudimos subir la imagen, intentá de nuevo",
+                }
+              : upload,
+          ),
+        );
+      });
   }
 
-  function handleFileInputChange(file: File | undefined) {
-    if (!file) return;
-    if (atLimit) return;
-    uploadFile(file);
+  function handleFilesChange(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+    if (!files.length) return;
+
+    const remaining = Math.max(
+      MAX_PORTFOLIO_PHOTOS - photos.length - pendingUploads.length,
+      0,
+    );
+    const filesToUpload = files.slice(0, remaining);
+
+    setTruncatedNotice(
+      files.length > filesToUpload.length
+        ? `Solo se subieron ${filesToUpload.length} de ${files.length} fotos (límite de ${MAX_PORTFOLIO_PHOTOS})`
+        : null,
+    );
+
+    filesToUpload.forEach(uploadFile);
   }
 
   function handleDrop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
     setIsDraggingOver(false);
-    const file = event.dataTransfer.files?.[0];
-    handleFileInputChange(file);
+    handleFilesChange(event.dataTransfer.files);
   }
 
   function handleDelete(photoId: string) {
@@ -102,7 +135,7 @@ export function PortfolioPhotoManager({
         {photos.length} de {MAX_PORTFOLIO_PHOTOS} fotos
       </p>
 
-      {(photos.length > 0 || pendingPreviewUrl) && (
+      {(photos.length > 0 || pendingUploads.length > 0) && (
         <div className="grid grid-cols-3 gap-2">
           {photos.map((photo) => (
             <div key={photo.id} className="relative aspect-square">
@@ -131,25 +164,29 @@ export function PortfolioPhotoManager({
             </div>
           ))}
 
-          {pendingPreviewUrl && (
-            <div className="relative aspect-square">
+          {pendingUploads.map((upload) => (
+            <div key={upload.id} className="relative aspect-square">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={pendingPreviewUrl}
+                src={upload.previewUrl}
                 alt="Subiendo foto"
                 className="h-full w-full rounded-2xl object-cover opacity-60"
               />
               <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40">
-                {isUploadSuccess ? (
+                {upload.status === "success" ? (
                   <span className="text-2xl text-white" aria-hidden="true">
                     ✓
+                  </span>
+                ) : upload.status === "error" ? (
+                  <span className="text-2xl text-white" aria-hidden="true">
+                    ✕
                   </span>
                 ) : (
                   <Spinner className="h-6 w-6 text-white" />
                 )}
               </div>
             </div>
-          )}
+          ))}
         </div>
       )}
 
@@ -165,34 +202,36 @@ export function PortfolioPhotoManager({
             isDraggingOver ? "border-sb-blue bg-sb-card-blue" : "border-sb-border"
           }`}
         >
-          <p className="text-[15px] text-sb-muted">Arrastrá una foto acá o</p>
+          <p className="text-[15px] text-sb-muted">Arrastrá fotos acá o</p>
           <label className="mt-2 inline-block cursor-pointer text-[15px] font-medium text-sb-blue underline">
-            elegí un archivo
+            elegí archivos
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              multiple
               className="hidden"
-              disabled={isUploading}
-              onChange={(event) =>
-                handleFileInputChange(event.target.files?.[0])
-              }
+              onChange={(event) => handleFilesChange(event.target.files)}
             />
           </label>
         </div>
       )}
 
-      {isUploading && (
+      {truncatedNotice && (
+        <p className="text-sm text-sb-error">{truncatedNotice}</p>
+      )}
+      {pendingUploads.some((upload) => upload.status === "uploading") && (
         <p className="flex items-center gap-2 text-sm text-sb-muted">
           <Spinner className="h-4 w-4" />
-          Subiendo foto...
+          Subiendo fotos...
         </p>
       )}
-      {isUploadSuccess && (
-        <p className="text-sm text-sb-success">Foto agregada</p>
-      )}
-      {isUploadError && uploadError && (
-        <p className="text-sm text-sb-error">{uploadError}</p>
-      )}
+      {pendingUploads
+        .filter((upload) => upload.status === "error" && upload.error)
+        .map((upload) => (
+          <p key={upload.id} className="text-sm text-sb-error">
+            {upload.error}
+          </p>
+        ))}
       {deleteError && <p className="text-sm text-sb-error">{deleteError}</p>}
     </div>
   );

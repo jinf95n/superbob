@@ -38,10 +38,10 @@ export function ProfessionalCard({
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-sb-border bg-white ${className}`}
+      className={`rounded-2xl border border-sb-border bg-white ${className}`}
     >
       <div
-        className="relative h-[120px] overflow-hidden"
+        className="relative h-[100px] overflow-hidden rounded-t-2xl"
         style={{ backgroundColor: bannerColor }}
       >
         <div
@@ -70,20 +70,22 @@ export function ProfessionalCard({
             Verificado
           </div>
         )}
+      </div>
 
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
+      <div className="flex justify-center">
+        <div className="relative -mt-10 z-10">
           {professional.avatarUrl ? (
-            <div className="h-16 w-16 overflow-hidden rounded-full border-[3px] border-white">
+            <div className="h-20 w-20 overflow-hidden rounded-full border-[3px] border-white">
               <Image
                 src={professional.avatarUrl}
                 alt={professional.fullName}
-                width={64}
-                height={64}
+                width={80}
+                height={80}
                 className="h-full w-full object-cover"
               />
             </div>
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-white bg-white">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-white bg-white">
               <span className="font-display text-xl font-bold text-sb-blue">
                 {getInitials(professional.fullName)}
               </span>
@@ -92,7 +94,7 @@ export function ProfessionalCard({
         </div>
       </div>
 
-      <div className="px-5 pb-5 pt-10 text-center">
+      <div className="px-5 pb-5 pt-3 text-center">
         <p className="truncate font-display text-[15px] font-semibold text-sb-text">
           {professional.fullName}
         </p>
@@ -114,7 +116,7 @@ export function ProfessionalCard({
             <path d="M12 21s-7-7.2-7-12a7 7 0 1 1 14 0c0 4.8-7 12-7 12Z" />
             <circle cx="12" cy="9" r="2.5" />
           </svg>
-          {professional.department}
+          Atiende en {professional.department}
         </p>
 
         {professional.reviewCount > 0 && (

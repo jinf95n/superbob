@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { APIError } from "better-auth/api";
 import { auth } from "@/lib/auth";
@@ -48,7 +47,7 @@ export async function registerAction(
     throw error;
   }
 
-  redirect("/dashboard");
+  return { success: true, redirectTo: "/dashboard" };
 }
 
 export async function sendPhoneOtpAction(
@@ -152,7 +151,7 @@ export async function loginAction(
   }
 
   const role = await getUserRole(userId);
-  redirect(role === "admin" ? "/admin" : "/dashboard");
+  return { success: true, redirectTo: role === "admin" ? "/admin" : "/dashboard" };
 }
 
 const MAX_AVATAR_SIZE_BYTES = 2 * 1024 * 1024;

@@ -8,6 +8,7 @@ import { ProfessionalProfileForEdit } from "@/modules/professionals/types";
 import { uploadAvatarAction } from "@/modules/users/actions";
 import { PortfolioPhotoItem } from "@/modules/photos/types";
 import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager";
+import { BioBuilder } from "@/components/shared/BioBuilder";
 import { Spinner } from "@/components/ui/Spinner";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
@@ -46,6 +47,9 @@ export function ProfessionalEditWizard({
   // Paso 1
   const [bio, setBio] = useState(profile.bio ?? "");
   const [contactPhone, setContactPhone] = useState(profile.contactPhone ?? "");
+  const [contactPhoneError, setContactPhoneError] = useState<string | null>(
+    null,
+  );
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isUploadingAvatar, startAvatarUpload] = useTransition();
@@ -160,6 +164,11 @@ export function ProfessionalEditWizard({
   }
 
   function goToStep2() {
+    if (!contactPhone.trim()) {
+      setContactPhoneError("El teléfono de contacto es obligatorio");
+      return;
+    }
+    setContactPhoneError(null);
     setFormError(null);
     setStep(2);
   }
@@ -187,7 +196,7 @@ export function ProfessionalEditWizard({
 
     submitChanges({
       bio: bio || undefined,
-      contactPhone: contactPhone || undefined,
+      contactPhone,
       primaryTradeId,
       primaryYearsExperience: primaryYearsExperience || undefined,
       secondaryTrades: secondaryTrades
@@ -245,14 +254,9 @@ export function ProfessionalEditWizard({
             <label htmlFor="bio" className="block text-sm font-medium text-sb-text">
               Contanos sobre tu trabajo
             </label>
-            <textarea
-              id="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              maxLength={500}
-              rows={4}
-              className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text focus:border-sb-blue focus:outline-none"
-            />
+            <div className="mt-2">
+              <BioBuilder initialValue={profile.bio} onChange={setBio} />
+            </div>
           </div>
 
           <div>
@@ -260,21 +264,27 @@ export function ProfessionalEditWizard({
               htmlFor="contactPhone"
               className="block text-sm font-medium text-sb-text"
             >
-              Teléfono de contacto
+              Teléfono de contacto <span className="text-sb-error">*</span>
             </label>
-            <p className="text-xs text-sb-muted">
-              {accountPhone
-                ? `Tu teléfono de cuenta es ${accountPhone}. Completá esto solo si querés que los clientes te contacten a otro número.`
-                : "Completá esto si querés que los clientes te contacten a un número distinto al de tu cuenta."}
-            </p>
             <input
               id="contactPhone"
               type="tel"
               value={contactPhone}
-              onChange={(e) => setContactPhone(e.target.value)}
+              onChange={(e) => {
+                setContactPhone(e.target.value);
+                if (contactPhoneError) setContactPhoneError(null);
+              }}
               placeholder="+54 9 11 1234-5678"
               className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text focus:border-sb-blue focus:outline-none"
             />
+            <p className="mt-1 text-[12px] text-sb-muted">
+              Este número es el que verán los clientes para contactarte.
+            </p>
+            {contactPhoneError && (
+              <p className="mt-1 text-[13px] text-sb-error">
+                {contactPhoneError}
+              </p>
+            )}
           </div>
 
           <button type="button" onClick={goToStep2} className={PRIMARY_BUTTON_CLASSES}>

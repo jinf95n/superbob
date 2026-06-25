@@ -39,6 +39,12 @@ export type SearchablePrimaryTrade = {
   categoryName: string;
 };
 
+export type SearchableLatestReview = {
+  rating: number;
+  comment: string | null;
+  reviewerName: string;
+};
+
 export type SearchableProfessional = {
   id: string;
   slug: string;
@@ -55,7 +61,7 @@ export type SearchableProfessional = {
   completedJobsCount: number;
   yearsExperience: number;
   profileScore: number;
-  bio: string | null;
+  latestReview: SearchableLatestReview | null;
 };
 
 const yearsExperienceSchema = z.preprocess(
@@ -79,10 +85,11 @@ export const CreateProfessionalProfileSchema = z
       emptyToUndefined,
       z.string().trim().max(500, "Máximo 500 caracteres").optional(),
     ),
-    contactPhone: z.preprocess(
-      emptyToUndefined,
-      z.string().trim().min(8, "Teléfono inválido").optional(),
-    ),
+    contactPhone: z
+      .string()
+      .trim()
+      .min(8, "Ingresá un número de teléfono válido")
+      .regex(/^[\d\s\+\-\(\)]+$/, "Solo números, espacios y +/-/()"),
     primaryTradeId: z.string().uuid("Elegí un oficio principal"),
     primaryYearsExperience: yearsExperienceSchema,
     secondaryTrades: z
@@ -121,6 +128,7 @@ export type CreateProfessionalProfileInput = z.input<
 export type CreateProfessionalProfileActionState = {
   error?: string;
   fieldErrors?: Record<string, string>;
+  professionalId?: string;
 };
 
 export type ProfessionalPortfolioPhoto = {

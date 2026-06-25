@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/Spinner";
+import { useToast } from "@/lib/contexts/ToastContext";
 
 type UserMenuProps = {
   fullName: string;
@@ -22,6 +23,7 @@ export function UserMenu({
   isAdmin,
 }: UserMenuProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,6 +48,7 @@ export function UserMenu({
     setIsLoggingOut(true);
     await authClient.signOut();
     setIsOpen(false);
+    toast.success("Sesión cerrada.");
     router.push("/");
     router.refresh();
   }
