@@ -9,6 +9,7 @@ import {
   getSuperbobScoreBreakdown,
 } from "@/modules/professionals/queries";
 import { PhoneReveal } from "@/components/shared/PhoneReveal";
+import { ProfileAvatarWithModal } from "@/components/shared/ProfileAvatarWithModal";
 import { ReportModal } from "@/components/shared/ReportModal";
 import { BadgeRow } from "@/components/shared/BadgePill";
 import { ProfileCompletionCard } from "@/components/shared/ProfileCompletionCard";
@@ -20,13 +21,6 @@ type ProfessionalPublicProfilePageProps = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
-
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-}
 
 function formatMonthYear(date: Date): string {
   const formatted = date.toLocaleDateString("es-AR", {
@@ -90,18 +84,10 @@ export default async function ProfessionalPublicProfilePage({
         {/* 1. HERO */}
         <section className="rounded-2xl border-b border-sb-border bg-white p-6">
           <div className="flex items-center gap-4">
-            {professional.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={professional.avatarUrl}
-                alt={professional.fullName}
-                className="h-[72px] w-[72px] shrink-0 rounded-full border border-sb-blue object-cover"
-              />
-            ) : (
-              <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-sb-card-blue font-display text-2xl font-bold text-sb-blue">
-                {getInitials(professional.fullName)}
-              </div>
-            )}
+            <ProfileAvatarWithModal
+              avatarUrl={professional.avatarUrl}
+              fullName={professional.fullName}
+            />
 
             <div>
               <h1 className="font-display text-[24px] font-extrabold text-sb-text">
@@ -113,7 +99,8 @@ export default async function ProfessionalPublicProfilePage({
                   {professional.primaryTrade && professional.primaryDepartmentName
                     ? " · "
                     : ""}
-                  {professional.primaryDepartmentName}
+                  {professional.primaryDepartmentName &&
+                    `Atiende en ${professional.primaryDepartmentName}`}
                 </p>
               )}
             </div>

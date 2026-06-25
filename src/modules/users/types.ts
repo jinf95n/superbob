@@ -27,6 +27,8 @@ export const VerifyPhoneOtpSchema = z.object({
 
 export type AuthActionState = {
   error?: string;
+  success?: boolean;
+  redirectTo?: string;
 };
 
 export type PhoneOtpActionState = {

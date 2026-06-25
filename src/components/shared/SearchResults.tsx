@@ -242,7 +242,7 @@ export function SearchResults({ professionals, trades }: SearchResultsProps) {
             </p>
           )}
 
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
             {filtered.map((professional) => (
               <ProfessionalSearchCard
                 key={professional.id}
