@@ -1,14 +1,17 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { getProfessionalProfileIdByUserId } from "@/modules/professionals/queries";
-import { getActiveTradesForFilter } from "@/modules/trades/queries";
+import {
+  getProfessionalProfileIdByUserId,
+  getProfessionalTradesForSelector,
+} from "@/modules/professionals/queries";
+import { getProfessionalContactsForReview } from "@/modules/contacts/queries";
 import {
   getPendingReviewsForProfessional,
   getPublishedReviewsForProfessional,
 } from "@/modules/reviews/queries";
 import { Badge } from "@/components/ui/Badge";
-import { MarkWorkCompletedForm } from "./MarkWorkCompletedForm";
+import { ContactsForReviewList } from "./ContactsForReviewList";
 import { RateClientForm } from "./RateClientForm";
 
 export default async function ProfessionalReviewsPage() {
@@ -22,11 +25,13 @@ export default async function ProfessionalReviewsPage() {
     redirect("/professional/onboarding");
   }
 
-  const [tradeCategories, pendingRatings, publishedReviews] = await Promise.all([
-    getActiveTradesForFilter(),
-    getPendingReviewsForProfessional(professionalId),
-    getPublishedReviewsForProfessional(professionalId),
-  ]);
+  const [contacts, professionalTrades, pendingRatings, publishedReviews] =
+    await Promise.all([
+      getProfessionalContactsForReview(professionalId),
+      getProfessionalTradesForSelector(professionalId),
+      getPendingReviewsForProfessional(professionalId),
+      getPublishedReviewsForProfessional(professionalId),
+    ]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -34,11 +39,11 @@ export default async function ProfessionalReviewsPage() {
         Reseñas recibidas
       </h1>
 
-      <section className="mt-6 rounded-2xl bg-white p-5">
+      <section className="mt-6">
         <h2 className="font-display text-[18px] font-semibold text-sb-text">
-          Marcar un trabajo con un cliente
+          Contactos recientes
         </h2>
-        <MarkWorkCompletedForm tradeCategories={tradeCategories} />
+        <ContactsForReviewList contacts={contacts} trades={professionalTrades} />
       </section>
 
       <section className="mt-6">

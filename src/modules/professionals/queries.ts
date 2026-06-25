@@ -1005,3 +1005,14 @@ export async function getProfessionalsForAdmin(
     totalPages,
   };
 }
+
+export async function getProfessionalTradesForSelector(
+  professionalId: string,
+): Promise<{ id: string; name: string }[]> {
+  const pts = await prisma.professionalTrade.findMany({
+    where: { professionalId, trade: { isActive: true } },
+    orderBy: { isPrimary: "desc" },
+    select: { trade: { select: { id: true, name: true } } },
+  });
+  return pts.map((pt) => pt.trade);
+}
