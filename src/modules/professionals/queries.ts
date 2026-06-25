@@ -267,7 +267,13 @@ export async function getPlatformStats(): Promise<PlatformStats> {
   return { totalProfessionals, totalReviews, verifiedProfessionals };
 }
 
-const MAX_PROFILE_REVIEWS_LOADED = 200;
+// Cantidad de reseñas a hidratar completas (con reviewer/trade/workRecord)
+// para la carga inicial de /p/[slug]. Las estadísticas (histograma,
+// satisfactionRate, publishedReviewsCount) NO dependen de este límite: se
+// calculan con agregados de Prisma sobre todas las reseñas publicadas, no
+// sobre este array. "Ver todas las reseñas" del cliente sigue mostrando como
+// máximo esta cantidad — Fase 1 no tiene paginación de reseñas.
+const MAX_PROFILE_REVIEWS_LOADED = 10;
 
 /**
  * "Claudia M." — nombre + inicial del apellido, por privacidad en reseñas
@@ -379,18 +385,48 @@ export async function getProfessionalProfileBySlug(
   }
 
   const tradeIds = professional.professionalTrades.map((pt) => pt.tradeId);
+  const publishedReviewsWhere = {
+    reviewedProfessionalId: professional.id,
+    publishedAt: { not: null },
+  };
 
-  const completedByTrade = tradeIds.length
-    ? await prisma.workRecord.groupBy({
-        by: ["tradeId"],
-        where: {
-          professionalId: professional.id,
-          type: "completed",
-          tradeId: { in: tradeIds },
-        },
-        _count: { _all: true },
-      })
-    : [];
+  // Las 6 queries de abajo son independientes entre sí (todas solo dependen
+  // de professional.id / tradeIds, ya resueltos) — antes algunas se esperaban
+  // en serie sin necesidad, lo que sumaba tiempo de ida y vuelta a la DB.
+  const [
+    completedByTrade,
+    scores,
+    completedWorkRecordsCount,
+    ratingGroups,
+    publishedReviewsCount,
+    satisfiedCount,
+  ] = await Promise.all([
+    tradeIds.length
+      ? prisma.workRecord.groupBy({
+          by: ["tradeId"],
+          where: {
+            professionalId: professional.id,
+            type: "completed",
+            tradeId: { in: tradeIds },
+          },
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
+    getWeightedScores([professional.id]),
+    prisma.workRecord.count({
+      where: { professionalId: professional.id, type: "completed" },
+    }),
+    prisma.review.groupBy({
+      by: ["rating"],
+      where: publishedReviewsWhere,
+      _count: { _all: true },
+    }),
+    prisma.review.count({ where: publishedReviewsWhere }),
+    prisma.review.count({
+      where: { ...publishedReviewsWhere, rating: { gte: 4 } },
+    }),
+  ]);
+
   const completedByTradeMap = new Map(
     completedByTrade.map((row) => [row.tradeId, row._count._all]),
   );
@@ -409,14 +445,12 @@ export async function getProfessionalProfileBySlug(
   const primaryTradeEntry =
     professional.professionalTrades.find((pt) => pt.isPrimary) ?? null;
 
-  const [scores, completedWorkRecordsCount] = await Promise.all([
-    getWeightedScores([professional.id]),
-    prisma.workRecord.count({
-      where: { professionalId: professional.id, type: "completed" },
-    }),
-  ]);
   const scoreEntry = scores.get(professional.id) ?? null;
 
+  // Histograma calculado sobre TODAS las reseñas publicadas (agregado de
+  // Prisma), no sobre professional.reviewsReceived — ese array está acotado
+  // a MAX_PROFILE_REVIEWS_LOADED para la carga inicial y subestimaría el
+  // conteo real si se usara acá.
   const ratingHistogram: Record<1 | 2 | 3 | 4 | 5, number> = {
     1: 0,
     2: 0,
@@ -424,20 +458,16 @@ export async function getProfessionalProfileBySlug(
     4: 0,
     5: 0,
   };
-  for (const review of professional.reviewsReceived) {
-    const bucket = Math.min(5, Math.max(1, Math.round(review.rating))) as
+  for (const group of ratingGroups) {
+    const bucket = Math.min(5, Math.max(1, Math.round(group.rating))) as
       | 1
       | 2
       | 3
       | 4
       | 5;
-    ratingHistogram[bucket] += 1;
+    ratingHistogram[bucket] += group._count._all;
   }
 
-  const publishedReviewsCount = professional.reviewsReceived.length;
-  const satisfiedCount = professional.reviewsReceived.filter(
-    (review) => review.rating >= 4,
-  ).length;
   const satisfactionRate =
     publishedReviewsCount >= 3
       ? Math.round((satisfiedCount / publishedReviewsCount) * 100)
@@ -530,30 +560,31 @@ function getCompletenessLevel(score: number): ProfileCompletenessLevel {
 export async function getProfileCompleteness(
   professionalId: string,
 ): Promise<ProfileCompleteness> {
-  const professional = await prisma.professionalProfile.findUnique({
-    where: { id: professionalId },
-    select: {
-      bio: true,
-      contactPhone: true,
-      isVerified: true,
-      user: { select: { avatarUrl: true } },
-      professionalTrades: {
-        where: { isPrimary: true },
-        select: { id: true },
-        take: 1,
+  const [professional, publishedReviewsCount] = await Promise.all([
+    prisma.professionalProfile.findUnique({
+      where: { id: professionalId },
+      select: {
+        bio: true,
+        contactPhone: true,
+        isVerified: true,
+        user: { select: { avatarUrl: true } },
+        professionalTrades: {
+          where: { isPrimary: true },
+          select: { id: true },
+          take: 1,
+        },
+        coverageAreas: { select: { id: true }, take: 1 },
+        _count: { select: { workPhotos: true } },
       },
-      coverageAreas: { select: { id: true }, take: 1 },
-      _count: { select: { workPhotos: true } },
-    },
-  });
+    }),
+    prisma.review.count({
+      where: { reviewedProfessionalId: professionalId, publishedAt: { not: null } },
+    }),
+  ]);
 
   if (!professional) {
     return { score: 0, level: "Básico", items: [] };
   }
-
-  const publishedReviewsCount = await prisma.review.count({
-    where: { reviewedProfessionalId: professionalId, publishedAt: { not: null } },
-  });
 
   const items: ProfileCompletionItem[] = [
     {
@@ -631,15 +662,9 @@ const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30;
 export async function getSuperbobScoreBreakdown(
   professionalId: string,
 ): Promise<SuperbobScoreBreakdown | null> {
-  const scores = await getWeightedScores([professionalId]);
-  const scoreEntry = scores.get(professionalId);
-
-  if (!scoreEntry) {
-    return null;
-  }
-
-  const [completedWorkRecordsCount, completeness, professional] =
+  const [scores, completedWorkRecordsCount, completeness, professional] =
     await Promise.all([
+      getWeightedScores([professionalId]),
       prisma.workRecord.count({
         where: { professionalId, type: "completed" },
       }),
@@ -649,8 +674,9 @@ export async function getSuperbobScoreBreakdown(
         select: { createdAt: true },
       }),
     ]);
+  const scoreEntry = scores.get(professionalId);
 
-  if (!professional) {
+  if (!scoreEntry || !professional) {
     return null;
   }
 
@@ -732,20 +758,26 @@ const HUNDRED_JOBS_THRESHOLD = 100;
 export async function getProfessionalBadges(
   professionalId: string,
 ): Promise<ProfessionalBadge[]> {
-  const professional = await prisma.professionalProfile.findUnique({
-    where: { id: professionalId },
-    select: {
-      isVerified: true,
-      professionalTrades: {
-        where: { isPrimary: true },
-        select: { tradeId: true },
-        take: 1,
+  const [professional, workRecords] = await Promise.all([
+    prisma.professionalProfile.findUnique({
+      where: { id: professionalId },
+      select: {
+        isVerified: true,
+        professionalTrades: {
+          where: { isPrimary: true },
+          select: { tradeId: true },
+          take: 1,
+        },
+        coverageAreas: {
+          select: { departmentId: true, department: { select: { name: true } } },
+        },
       },
-      coverageAreas: {
-        select: { departmentId: true, department: { select: { name: true } } },
-      },
-    },
-  });
+    }),
+    prisma.workRecord.findMany({
+      where: { professionalId },
+      select: { clientId: true, type: true },
+    }),
+  ]);
 
   if (!professional) {
     return [];
@@ -759,26 +791,27 @@ export async function getProfessionalBadges(
 
   const primaryTradeId = professional.professionalTrades[0]?.tradeId;
   if (primaryTradeId) {
-    for (const area of professional.coverageAreas) {
-      const rank = await getDepartmentTopRank(
-        professionalId,
-        primaryTradeId,
-        area.departmentId,
-      );
-      if (rank !== null && rank <= TOP_DEPARTMENT_RANK_THRESHOLD) {
-        badges.push({
-          id: "top-department",
-          label: `Top ${area.department.name}`,
-        });
-        break;
-      }
+    // Antes era un for-loop secuencial (await por cada área de cobertura,
+    // cada uno con 2 queries adentro de getDepartmentTopRank) — con varias
+    // decenas de departamentos esto sumaba segundos. Se piden todos los
+    // ranks en paralelo y se elige el mejor resultado.
+    const ranks = await Promise.all(
+      professional.coverageAreas.map((area) =>
+        getDepartmentTopRank(professionalId, primaryTradeId, area.departmentId).then(
+          (rank) => ({ rank, area }),
+        ),
+      ),
+    );
+    const topDepartment = ranks.find(
+      ({ rank }) => rank !== null && rank <= TOP_DEPARTMENT_RANK_THRESHOLD,
+    );
+    if (topDepartment) {
+      badges.push({
+        id: "top-department",
+        label: `Top ${topDepartment.area.department.name}`,
+      });
     }
   }
-
-  const workRecords = await prisma.workRecord.findMany({
-    where: { professionalId },
-    select: { clientId: true, type: true },
-  });
 
   const clientCounts = new Map<string, number>();
   for (const record of workRecords) {

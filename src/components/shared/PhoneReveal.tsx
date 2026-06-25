@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { revealPhoneAction } from "@/modules/contacts/actions";
+import {
+  registerContactEventAction,
+  revealPhoneAction,
+} from "@/modules/contacts/actions";
 import { ContactEventSource } from "@prisma/client";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 import { Spinner } from "@/components/ui/Spinner";
@@ -12,7 +15,13 @@ type PhoneRevealProps = {
   professionalId: string;
   source: ContactEventSource;
   /**
-   * "bar": barra fija inferior usada en el perfil público (default, sin cambios).
+   * Teléfono pre-cargado desde el servidor (solo para usuarios con sesión
+   * activa). Si está presente, el número se muestra al instante y el
+   * contact_event se registra en background.
+   */
+  preloadedPhone?: string | null;
+  /**
+   * "bar": barra fija inferior usada en el perfil público (default).
    * "inline": botón secundario normal, pensado para vivir dentro de una card.
    */
   variant?: "bar" | "inline";
@@ -24,9 +33,31 @@ const BAR_CLASSES =
 const INLINE_CLASSES =
   "flex h-11 w-full items-center justify-center rounded-[10px] text-[14px] font-medium transition-colors duration-150 ease-in-out";
 
+const WA_MESSAGE = encodeURIComponent(
+  "Hola! Vi tu perfil en SUPERBOB y me gustaría consultarte sobre tus servicios.",
+);
+
+/**
+ * Convierte un número argentino (en cualquier formato local) al formato
+ * requerido por wa.me: 549 + código de área (sin 0) + número.
+ * Ejemplos: "011-1234-5678" → "541112345678", "+54 9 11 1234-5678" → "541112345678"
+ */
+function formatArgentinePhoneForWhatsApp(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  // Ya tiene código de país + prefijo móvil: 549XXXXXXXXXX
+  if (digits.startsWith("549") && digits.length >= 11) return digits;
+  // Tiene código de país sin prefijo móvil: 54XXXXXXXXXX
+  if (digits.startsWith("54") && digits.length >= 10) return "549" + digits.slice(2);
+  // Formato local con 0 inicial: 0XXXXXXXXXX
+  if (digits.startsWith("0") && digits.length >= 10) return "549" + digits.slice(1);
+  // Solo área + número (sin 0 inicial)
+  return "549" + digits;
+}
+
 export function PhoneReveal({
   professionalId,
   source,
+  preloadedPhone,
   variant = "bar",
 }: PhoneRevealProps) {
   const router = useRouter();
@@ -63,19 +94,39 @@ export function PhoneReveal({
   }
 
   if (phone) {
+    const waUrl = `https://wa.me/${formatArgentinePhoneForWhatsApp(phone)}?text=${WA_MESSAGE}`;
     return (
-      <a
-        href={`tel:${phone}`}
-        className={`${baseClasses} animate-phone-reveal gap-2 bg-sb-blue text-white`}
-      >
-        <span aria-hidden="true">📞</span> {phone}
-      </a>
+      <div className="flex flex-col gap-3">
+        <a
+          href={`tel:${phone}`}
+          className={`${baseClasses} animate-phone-reveal gap-2 bg-sb-blue text-white`}
+        >
+          <span aria-hidden="true">📞</span> {phone}
+        </a>
+        <a
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={
+            variant === "inline"
+              ? "flex h-9 w-full items-center justify-center gap-2 rounded-[10px] border border-sb-blue text-[14px] font-medium text-sb-blue"
+              : "text-center text-[14px] font-medium text-sb-blue underline sm:text-left"
+          }
+        >
+          💬 Escribir por WhatsApp
+        </a>
+      </div>
     );
   }
 
   function handleClick() {
     if (!session) {
       router.push("/login");
+      return;
+    }
+    if (preloadedPhone) {
+      setPhone(preloadedPhone);
+      registerContactEventAction({ professionalId, source }).catch(() => {});
       return;
     }
     execute({ professionalId, source });
