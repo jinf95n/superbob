@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { getProfessionalProfileIdByUserId } from "@/modules/professionals/queries";
 import { createNotification } from "@/modules/notifications/actions";
 import {
+  ConfirmWorkFromContactActionState,
+  ConfirmWorkFromContactInput,
+  ConfirmWorkFromContactSchema,
   CreateWorkRecordActionState,
   CreateWorkRecordInput,
   CreateWorkRecordSchema,
@@ -207,6 +210,18 @@ export async function submitClientReviewAction(
     },
   });
 
+  const professionalUser = await prisma.professionalProfile.findUnique({
+    where: { id: workRecord.professionalId },
+    select: { userId: true },
+  });
+  if (professionalUser) {
+    await createNotification(professionalUser.userId, "review_received", {
+      message:
+        "Un cliente dejó una reseña sobre tu trabajo. Se publicará cuando la hayas respondido o pasen 14 días.",
+      actionUrl: "/professional/reviews",
+    });
+  }
+
   await checkAndPublishReviews(workRecordId);
 
   return { success: true };
@@ -262,4 +277,65 @@ export async function submitProfessionalRatingAction(
   await checkAndPublishReviews(workRecordId);
 
   return { success: true };
+}
+
+export async function confirmWorkFromContactAction(
+  input: ConfirmWorkFromContactInput,
+): Promise<ConfirmWorkFromContactActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  const professionalId = await getProfessionalProfileIdByUserId(session.user.id);
+  if (!professionalId) {
+    return { error: "Necesitás activar tu perfil profesional" };
+  }
+
+  const parsed = ConfirmWorkFromContactSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const { contactEventId, clientId, tradeId, type } = parsed.data;
+
+  const contactEvent = await prisma.contactEvent.findUnique({
+    where: { id: contactEventId },
+    select: { professionalId: true, clientId: true },
+  });
+
+  if (!contactEvent || contactEvent.professionalId !== professionalId) {
+    return { error: "No encontramos ese contacto" };
+  }
+
+  if (contactEvent.clientId !== clientId) {
+    return { error: "Datos de cliente inválidos" };
+  }
+
+  const professional = await prisma.professionalProfile.findUnique({
+    where: { id: professionalId },
+    select: { user: { select: { fullName: true } } },
+  });
+
+  const now = new Date();
+  const workRecord = await prisma.workRecord.create({
+    data: {
+      professionalId,
+      clientId,
+      tradeId,
+      type,
+      initiatedByProfessionalAt: now,
+      clientNotifiedAt: now,
+    },
+  });
+
+  await createNotification(clientId, "work_confirmed", {
+    message:
+      type === "completed"
+        ? `${professional?.user.fullName ?? "Un profesional"} dice que completó un trabajo con vos. ¿Querés dejar una reseña?`
+        : `${professional?.user.fullName ?? "Un profesional"} dice que tuvo contacto con vos. ¿Querés dejar una reseña?`,
+    actionUrl: `/reviews/${workRecord.id}`,
+  });
+
+  return { workRecordId: workRecord.id };
 }

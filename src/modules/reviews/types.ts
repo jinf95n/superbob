@@ -1,6 +1,20 @@
 import { z } from "zod";
 import { ReviewType, WorkRecordType } from "@prisma/client";
 
+export const ConfirmWorkFromContactSchema = z.object({
+  contactEventId: z.string().uuid(),
+  clientId: z.string().uuid(),
+  tradeId: z.string().uuid("Elegí un oficio"),
+  type: z.enum(WorkRecordType),
+});
+
+export type ConfirmWorkFromContactInput = z.input<typeof ConfirmWorkFromContactSchema>;
+
+export type ConfirmWorkFromContactActionState = {
+  error?: string;
+  workRecordId?: string;
+};
+
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
 export const CreateWorkRecordSchema = z

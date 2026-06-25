@@ -9,11 +9,26 @@ type NotificationItemProps = {
   notification: NotificationListItem;
 };
 
+function getNotificationMessage(notification: NotificationListItem): string {
+  switch (notification.type) {
+    case "review_received":
+      return "Un cliente dejó una reseña sobre tu trabajo. Calificalo para que se publique.";
+    case "work_confirmed":
+      return notification.payload?.message ?? "Nuevo trabajo registrado. ¿Querés dejar una reseña?";
+    case "review_published":
+      return "Una reseña tuya se publicó en el perfil del profesional.";
+    case "work_record_created":
+      return notification.payload?.message ?? "Un profesional registró un trabajo con vos.";
+    default:
+      return notification.payload?.message ?? "";
+  }
+}
+
 export function NotificationItem({ notification }: NotificationItemProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const isUnread = !notification.readAt;
-  const message = notification.payload?.message ?? "";
+  const message = getNotificationMessage(notification);
   const actionUrl = notification.payload?.actionUrl;
 
   function handleClick() {

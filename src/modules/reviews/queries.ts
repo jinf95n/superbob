@@ -297,6 +297,30 @@ export async function getPublishedReviewsForProfessional(
   }));
 }
 
+export async function getPendingReviewsForClientCount(
+  userId: string,
+): Promise<number> {
+  return prisma.workRecord.count({
+    where: { clientId: userId, reviews: { none: {} } },
+  });
+}
+
+export async function checkUserHasPendingReview(
+  clientId: string,
+  professionalId: string,
+): Promise<{ workRecordId: string } | null> {
+  const workRecord = await prisma.workRecord.findFirst({
+    where: {
+      clientId,
+      professionalId,
+      reviews: { none: { reviewerId: clientId } },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  return workRecord ? { workRecordId: workRecord.id } : null;
+}
+
 /**
  * Calificación privada del cliente: solo debe mostrarse al profesional que
  * la escribió (regla del módulo reviews — nunca se expone públicamente).

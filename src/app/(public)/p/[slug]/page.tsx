@@ -9,6 +9,7 @@ import {
   getProfileCompleteness,
   getSuperbobScoreBreakdown,
 } from "@/modules/professionals/queries";
+import { checkUserHasPendingReview } from "@/modules/reviews/queries";
 import { PhoneReveal } from "@/components/shared/PhoneReveal";
 import { ProfileAvatarWithModal } from "@/components/shared/ProfileAvatarWithModal";
 import { ReportModal } from "@/components/shared/ReportModal";
@@ -49,13 +50,18 @@ export default async function ProfessionalPublicProfilePage({
 
   const isOwner = session?.user.id === professional.userId;
 
-  const [badges, contactMetrics, scoreBreakdown, completeness, contactPhone] =
+  const isClient = session && !isOwner;
+
+  const [badges, contactMetrics, scoreBreakdown, completeness, contactPhone, pendingReview] =
     await Promise.all([
       getProfessionalBadges(professional.id),
       getContactMetrics(professional.id),
       getSuperbobScoreBreakdown(professional.id),
       isOwner ? getProfileCompleteness(professional.id) : Promise.resolve(null),
       session ? getProfessionalContactPhone(professional.id) : Promise.resolve(null),
+      isClient
+        ? checkUserHasPendingReview(session.user.id, professional.id)
+        : Promise.resolve(null),
     ]);
 
   const host = requestHeaders.get("host");
@@ -83,6 +89,23 @@ export default async function ProfessionalPublicProfilePage({
           <p className="rounded-2xl bg-sb-card-blue p-4 text-center text-[15px] text-sb-text">
             Guardado. Tu perfil ya está actualizado.
           </p>
+        )}
+
+        {pendingReview && (
+          <a
+            href={`/reviews/${pendingReview.workRecordId}`}
+            className="flex items-center justify-between rounded-2xl bg-sb-card-orange p-4"
+          >
+            <div>
+              <p className="text-[15px] font-semibold text-sb-orange">
+                Tenés una reseña pendiente
+              </p>
+              <p className="mt-0.5 text-[13px] text-sb-muted">
+                Contá cómo fue tu experiencia con {professional.fullName}
+              </p>
+            </div>
+            <span className="ml-3 shrink-0 text-sb-orange">→</span>
+          </a>
         )}
 
         {/* 1. HERO */}
@@ -227,7 +250,7 @@ export default async function ProfessionalPublicProfilePage({
                   </div>
                   <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-sb-bg">
                     <div
-                      className="h-full rounded-full bg-sb-orange"
+                      className="h-full rounded-full bg-sb-blue"
                       style={{
                         width: `${(component.value / component.max) * 100}%`,
                       }}
