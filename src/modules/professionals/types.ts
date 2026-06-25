@@ -33,18 +33,29 @@ export type PlatformStats = {
   verifiedProfessionals: number;
 };
 
-export type ProfessionalSearchItem = {
+export type SearchablePrimaryTrade = {
+  name: string;
+  slug: string;
+  categoryName: string;
+};
+
+export type SearchableProfessional = {
   id: string;
   slug: string;
   fullName: string;
   avatarUrl: string | null;
-  bio: string | null;
   isVerified: boolean;
-  primaryTrade: ProfessionalTradeSummary | null;
-  trades: ProfessionalTradeSummary[];
-  departments: ProfessionalDepartmentSummary[];
-  score: number | null;
+  isActive: boolean;
+  createdAt: Date;
+  primaryTrade: SearchablePrimaryTrade | null;
+  allTrades: string[];
+  departments: string[];
+  averageRating: number;
   reviewCount: number;
+  completedJobsCount: number;
+  yearsExperience: number;
+  profileScore: number;
+  bio: string | null;
 };
 
 const yearsExperienceSchema = z.preprocess(

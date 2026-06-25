@@ -102,3 +102,38 @@ export async function getAllActiveTrades(): Promise<ActiveTradeOption[]> {
     select: { name: true, slug: true },
   });
 }
+
+export type ActiveTradeWithCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  categoryName: string;
+};
+
+/**
+ * Todos los trades activos en forma plana (con el nombre de su categoría),
+ * para el dropdown de filtro de oficios de /search. Viene de la base de
+ * datos completa, no de los profesionales cargados: con pocos profesionales
+ * activos el filtro no debe quedar vacío.
+ */
+export async function getAllActiveTradesFlat(): Promise<
+  ActiveTradeWithCategory[]
+> {
+  const trades = await prisma.trade.findMany({
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      category: { select: { name: true } },
+    },
+  });
+
+  return trades.map((trade) => ({
+    id: trade.id,
+    name: trade.name,
+    slug: trade.slug,
+    categoryName: trade.category.name,
+  }));
+}
