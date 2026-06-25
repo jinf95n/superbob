@@ -1,8 +1,5 @@
 import Link from "next/link";
-import {
-  getCategoriesWithCounts,
-  getAllActiveTrades,
-} from "@/modules/trades/queries";
+import { getAllActiveTrades } from "@/modules/trades/queries";
 import {
   getFeaturedProfessionals,
   getTopRatedProfessionals,
@@ -13,37 +10,46 @@ import { HomeSearch } from "@/components/shared/HomeSearch";
 import { ProfessionalCard } from "@/components/shared/ProfessionalCard";
 import { ProfessionalCTASection } from "@/components/shared/ProfessionalCTASection";
 
-const CATEGORY_ICON_EMOJI: Record<string, string> = {
-  construction: "🧱",
-  wrench: "🔧",
-  hammer: "🔨",
-  home: "🏠",
-  cpu: "💻",
-};
+// Contenido editorial fijo, no viene de la base de datos: las 10
+// categorías más representativas del universo de oficios del hogar.
+const POPULAR_CATEGORIES = [
+  { emoji: "🔧", name: "Plomería", slug: "plomeria" },
+  { emoji: "⚡", name: "Electricidad", slug: "electricidad" },
+  { emoji: "🧱", name: "Albañilería", slug: "albanileria" },
+  { emoji: "🎨", name: "Pintura", slug: "pintura" },
+  { emoji: "🔥", name: "Gas", slug: "gas" },
+  { emoji: "❄️", name: "Aire acondicionado", slug: "aire-acondicionado" },
+  { emoji: "🪟", name: "Carpintería", slug: "carpinteria" },
+  { emoji: "🏠", name: "Techista", slug: "techista" },
+  { emoji: "🧹", name: "Limpieza", slug: "limpieza" },
+  { emoji: "🔒", name: "Cerrajería", slug: "cerrajeria" },
+];
 
 const HOW_IT_WORKS_STEPS = [
   {
     emoji: "🔍",
     title: "Buscá por oficio y zona",
     description: "Escribí lo que necesitás y elegí tu departamento.",
+    circleClass: "bg-sb-blue/10 text-sb-blue",
   },
   {
     emoji: "⭐",
     title: "Revisá el perfil y las reseñas",
     description:
       "Fotos de trabajos reales, opiniones verificadas, historial completo.",
+    circleClass: "bg-sb-orange/10 text-sb-orange",
   },
   {
     emoji: "📞",
     title: "Contactá directo",
     description: "El teléfono del profesional, sin intermediarios ni comisiones.",
+    circleClass: "bg-sb-success/10 text-sb-success",
   },
 ];
 
 export default async function HomePage() {
-  const [categories, featuredPros, topRatedPros, stats, trades, departments] =
+  const [featuredPros, topRatedPros, stats, trades, departments] =
     await Promise.all([
-      getCategoriesWithCounts(),
       getFeaturedProfessionals(6),
       getTopRatedProfessionals(3),
       getPlatformStats(),
@@ -57,83 +63,92 @@ export default async function HomePage() {
   return (
     <main>
       {/* 1. HERO */}
-      <section className="bg-sb-blue px-4 py-16 sm:py-20">
-        <div className="mx-auto max-w-3xl">
-          <h1 className="font-display text-center text-[32px] font-extrabold text-white sm:text-[48px]">
-            Encontrá el profesional ideal para tu hogar
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-center text-[16px] text-white/80">
-            Reseñas verificadas, contacto directo. Sin intermediarios.
-          </p>
+      <section className="min-h-[480px] bg-sb-blue px-4 pb-10 pt-14 lg:min-h-[520px]">
+        <div className="mx-auto max-w-6xl lg:flex lg:items-center lg:gap-12">
+          <div className="lg:w-[55%]">
+            <p className="text-[13px] font-medium uppercase tracking-[0.08em] text-white/60">
+              San Juan · Directorio de oficios
+            </p>
 
-          <div className="mt-8">
-            <HomeSearch trades={trades} departments={departments} />
+            <h1 className="font-display mt-3 text-[44px] font-extrabold leading-[1.1] text-white lg:text-[56px]">
+              El profesional que necesitás está en tu{" "}
+              <span className="text-sb-orange">barrio</span>.
+            </h1>
+
+            <p className="mt-4 max-w-md text-[16px] leading-[1.6] text-white/70">
+              Reseñas de vecinos reales. Contacto directo. Sin
+              intermediarios.
+            </p>
+
+            <div className="mt-8 flex items-center">
+              <div className="mr-6 border-r border-white/20 pr-6">
+                <p className="font-display text-[28px] font-extrabold text-white">
+                  {stats.totalProfessionals}
+                </p>
+                <p className="text-[12px] text-white/60">
+                  profesionales registrados
+                </p>
+              </div>
+              <div className="mr-6 border-r border-white/20 pr-6">
+                <p className="font-display text-[28px] font-extrabold text-white">
+                  {stats.totalReviews}
+                </p>
+                <p className="text-[12px] text-white/60">reseñas verificadas</p>
+              </div>
+              <div>
+                <p className="font-display text-[28px] font-extrabold text-white">
+                  {stats.verifiedProfessionals}
+                </p>
+                <p className="text-[12px] text-white/60">
+                  perfiles verificados
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-8 flex items-center justify-center gap-6 sm:gap-10">
-            <div className="text-center">
-              <p className="font-display text-[20px] font-bold text-white">
-                {stats.totalProfessionals}
-              </p>
-              <p className="text-[13px] text-white/80">profesionales</p>
-              <p className="text-[13px] text-white/60">registrados</p>
-            </div>
-            <div className="h-10 w-px bg-white/20" />
-            <div className="text-center">
-              <p className="font-display text-[20px] font-bold text-white">
-                {stats.totalReviews}
-              </p>
-              <p className="text-[13px] text-white/80">reseñas</p>
-              <p className="text-[13px] text-white/60">verificadas</p>
-            </div>
-            <div className="h-10 w-px bg-white/20" />
-            <div className="text-center">
-              <p className="font-display text-[20px] font-bold text-white">
-                {stats.verifiedProfessionals}
-              </p>
-              <p className="text-[13px] text-white/80">perfiles</p>
-              <p className="text-[13px] text-white/60">verificados</p>
-            </div>
+          <div className="mt-8 lg:mt-0 lg:w-[45%]">
+            <HomeSearch trades={trades} departments={departments} />
           </div>
         </div>
       </section>
 
       {/* 2. CATEGORÍAS POPULARES */}
-      {categories.length > 0 && (
-        <section className="bg-white px-4 py-12">
-          <div className="mx-auto max-w-5xl">
-            <h2 className="font-display text-[22px] font-bold text-sb-text">
-              ¿Qué necesitás resolver?
+      <section className="bg-white px-4 py-14">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-[26px] font-extrabold text-sb-text">
+              Explorá por oficio
             </h2>
-            <p className="mt-1 text-[14px] text-sb-muted">
-              Seleccioná una categoría para ver profesionales disponibles en
-              tu zona.
-            </p>
-
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/search?trade=${category.slug}`}
-                  className="flex flex-col items-center gap-1 rounded-2xl border border-sb-border bg-sb-bg p-5 text-center transition-colors duration-150 ease-in-out hover:border-sb-blue"
-                >
-                  <span className="text-[32px] leading-none" aria-hidden="true">
-                    {(category.icon && CATEGORY_ICON_EMOJI[category.icon]) ||
-                      "🛠"}
-                  </span>
-                  <span className="font-display mt-1 text-[15px] font-semibold text-sb-text">
-                    {category.name}
-                  </span>
-                  <span className="text-[13px] text-sb-muted">
-                    {category.professionalCount} profesional
-                    {category.professionalCount === 1 ? "" : "es"}
-                  </span>
-                </Link>
-              ))}
-            </div>
+            <Link
+              href="/search"
+              className="text-[14px] font-normal text-sb-blue"
+            >
+              Ver todos los oficios →
+            </Link>
           </div>
-        </section>
-      )}
+
+          <div className="mt-6 grid grid-cols-2 gap-2.5 lg:grid-cols-5">
+            {POPULAR_CATEGORIES.map((category) => (
+              <Link
+                key={category.slug}
+                href={`/search?q=${category.slug}`}
+                className="flex flex-col items-center rounded-2xl border-[1.5px] border-sb-border bg-sb-bg px-4 py-5 text-center transition-colors duration-150 ease-in-out hover:border-sb-blue hover:bg-white"
+              >
+                <span
+                  role="img"
+                  aria-label={category.name}
+                  className="mb-2.5 text-[32px] leading-none"
+                >
+                  {category.emoji}
+                </span>
+                <span className="font-display line-clamp-2 text-[14px] font-bold leading-[1.3] text-sb-text">
+                  {category.name}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {/* 3. PROFESIONALES DESTACADOS */}
       {featuredPros.length > 0 && (
@@ -162,23 +177,30 @@ export default async function HomePage() {
       )}
 
       {/* 4. CÓMO FUNCIONA */}
-      <section className="bg-white px-4 py-12">
+      <section className="bg-[#EEF4FD] px-4 py-12">
         <div className="mx-auto max-w-4xl">
-          <h2 className="font-display text-center text-[22px] font-bold text-sb-text">
+          <h2 className="font-display text-center text-[26px] font-extrabold text-sb-text">
             Así de simple
           </h2>
+          <p className="mx-auto mb-10 mt-2 max-w-md text-center text-[15px] text-sb-muted">
+            Sin comisiones, sin intermediarios, sin vueltas.
+          </p>
 
-          <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-stretch">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch">
             {HOW_IT_WORKS_STEPS.map((step, index) => (
               <div key={step.title} className="flex flex-1 items-center gap-4">
-                <div className="flex-1 rounded-2xl bg-sb-bg p-6">
-                  <span className="text-[40px] leading-none" aria-hidden="true">
-                    {step.emoji}
+                <div className="flex-1 rounded-[20px] border-[1.5px] border-sb-border bg-white p-7">
+                  <span
+                    className={`mb-4 flex h-14 w-14 items-center justify-center rounded-full text-[28px] leading-none ${step.circleClass}`}
+                  >
+                    <span role="img" aria-label={step.title}>
+                      {step.emoji}
+                    </span>
                   </span>
-                  <h3 className="font-display mt-3 text-[16px] font-semibold text-sb-text">
+                  <h3 className="font-display text-[16px] font-bold text-sb-text">
                     {step.title}
                   </h3>
-                  <p className="mt-1 text-[14px] text-sb-muted">
+                  <p className="mt-1 text-[14px] leading-[1.6] text-sb-muted">
                     {step.description}
                   </p>
                 </div>
@@ -192,10 +214,9 @@ export default async function HomePage() {
                     stroke="currentColor"
                     strokeWidth="2"
                     strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="hidden shrink-0 text-sb-muted sm:block"
+                    className="hidden shrink-0 self-center text-sb-blue/40 sm:block"
                   >
-                    <path d="M5 12h14M13 6l6 6-6 6" />
+                    <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
                 )}
               </div>

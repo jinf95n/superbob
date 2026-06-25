@@ -23,17 +23,23 @@ export function ProfessionalCTASection() {
           Tu próximo cliente te está buscando en SUPERBOB.
         </p>
 
-        <ul className="mt-8 flex flex-col gap-3">
+        <ul className="mx-auto mb-8 mt-8 flex max-w-[600px] flex-col gap-2.5 sm:flex-row">
           {BENEFITS.map((benefit) => (
-            <li key={benefit.text} className="text-[15px] text-white/90">
-              <span aria-hidden="true">{benefit.emoji}</span> {benefit.text}
+            <li
+              key={benefit.text}
+              className="flex flex-1 items-center gap-2.5 rounded-xl border border-white/15 bg-white/10 px-4 py-3 text-left text-[14px] text-white/90"
+            >
+              <span aria-hidden="true" className="text-[20px]">
+                {benefit.emoji}
+              </span>
+              {benefit.text}
             </li>
           ))}
         </ul>
 
         <Link
           href={ctaHref}
-          className="mt-8 inline-flex items-center justify-center rounded-xl bg-sb-orange px-8 py-4 font-display text-[16px] font-semibold text-white transition-opacity duration-150 ease-in-out hover:opacity-90"
+          className="inline-flex items-center justify-center rounded-xl border-2 border-white/20 bg-sb-orange px-8 py-4 font-display text-[16px] font-semibold text-white transition-opacity duration-150 ease-in-out hover:opacity-90"
         >
           Crear mi perfil profesional
         </Link>
