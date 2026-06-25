@@ -9,6 +9,7 @@ import { uploadAvatarAction } from "@/modules/users/actions";
 import { PortfolioPhotoItem } from "@/modules/photos/types";
 import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager";
 import { Spinner } from "@/components/ui/Spinner";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 const PRIMARY_BUTTON_CLASSES =
   "flex h-[52px] w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50";
@@ -71,7 +72,13 @@ export function ProfessionalEditWizard({
     Set<string>
   >(new Set(profile.departmentIds));
 
-  const [isSubmitting, startSubmit] = useTransition();
+  // updateProfessionalProfileAction redirige server-side cuando termina bien
+  // (no romper esa lógica), así que del lado del cliente solo hay pending y
+  // error visibles: el éxito se manifiesta como la navegación misma.
+  const { execute: submitChanges, isPending: isSubmitting } = useServerAction(
+    updateProfessionalProfileAction,
+    { onError: () => setFormError("Error al guardar. Intentá de nuevo.") },
+  );
 
   const departmentLookup = useMemo(() => {
     const map = new Map<string, { name: string; provinceName: string }>();
@@ -178,24 +185,18 @@ export function ProfessionalEditWizard({
   function handleSubmit() {
     setFormError(null);
 
-    startSubmit(async () => {
-      const result = await updateProfessionalProfileAction({
-        bio: bio || undefined,
-        contactPhone: contactPhone || undefined,
-        primaryTradeId,
-        primaryYearsExperience: primaryYearsExperience || undefined,
-        secondaryTrades: secondaryTrades
-          .filter((trade) => trade.tradeId)
-          .map((trade) => ({
-            tradeId: trade.tradeId,
-            yearsExperience: trade.yearsExperience || undefined,
-          })),
-        departmentIds: Array.from(selectedDepartmentIds),
-      });
-
-      if (result?.error) {
-        setFormError(result.error);
-      }
+    submitChanges({
+      bio: bio || undefined,
+      contactPhone: contactPhone || undefined,
+      primaryTradeId,
+      primaryYearsExperience: primaryYearsExperience || undefined,
+      secondaryTrades: secondaryTrades
+        .filter((trade) => trade.tradeId)
+        .map((trade) => ({
+          tradeId: trade.tradeId,
+          yearsExperience: trade.yearsExperience || undefined,
+        })),
+      departmentIds: Array.from(selectedDepartmentIds),
     });
   }
 
@@ -526,7 +527,7 @@ export function ProfessionalEditWizard({
               className={`${PRIMARY_BUTTON_CLASSES} gap-2`}
             >
               {isSubmitting && <Spinner className="h-4 w-4" />}
-              {isSubmitting ? "Guardando..." : "Guardar cambios"}
+              {isSubmitting ? "Guardando cambios..." : "Guardar cambios"}
             </button>
           </div>
         </section>

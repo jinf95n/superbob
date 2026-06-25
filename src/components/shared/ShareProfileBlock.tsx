@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { useToast } from "@/lib/contexts/ToastContext";
 
 type ShareProfileBlockProps = {
   profileUrl: string;
@@ -10,7 +11,7 @@ type ShareProfileBlockProps = {
 
 export function ShareProfileBlock({ profileUrl, slug }: ShareProfileBlockProps) {
   const [isQrOpen, setIsQrOpen] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const { toast } = useToast();
 
   async function handleShare() {
     if (typeof navigator !== "undefined" && navigator.share) {
@@ -24,11 +25,10 @@ export function ShareProfileBlock({ profileUrl, slug }: ShareProfileBlockProps) 
 
     try {
       await navigator.clipboard.writeText(profileUrl);
-      setFeedback("Link copiado");
+      toast.success("Link copiado");
     } catch {
-      setFeedback("No pudimos copiar el link");
+      toast.error("No pudimos copiar el link");
     }
-    setTimeout(() => setFeedback(null), 2500);
   }
 
   return (
@@ -49,12 +49,6 @@ export function ShareProfileBlock({ profileUrl, slug }: ShareProfileBlockProps) 
           Ver QR
         </button>
       </div>
-
-      {feedback && (
-        <p className="mt-2 text-center text-[13px] text-sb-success">
-          {feedback}
-        </p>
-      )}
 
       <p className="mt-2 text-center text-[13px] text-sb-muted">
         superbob.com.ar/p/{slug}

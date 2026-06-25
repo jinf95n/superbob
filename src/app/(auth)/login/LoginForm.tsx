@@ -44,7 +44,7 @@ export function LoginForm() {
         </div>
 
         {state.error && (
-          <p className="text-sm text-red-600">{state.error}</p>
+          <p className="text-sm text-sb-error">{state.error}</p>
         )}
 
         <SubmitButton

@@ -7,8 +7,10 @@ import {
 } from "@/modules/photos/actions";
 import { PortfolioPhotoItem } from "@/modules/photos/types";
 import { Spinner } from "@/components/ui/Spinner";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 const MAX_PORTFOLIO_PHOTOS = 10;
+const UPLOAD_SUCCESS_DURATION_MS = 800;
 
 type PortfolioPhotoManagerProps = {
   initialPhotos: PortfolioPhotoItem[];
@@ -18,52 +20,58 @@ export function PortfolioPhotoManager({
   initialPhotos,
 }: PortfolioPhotoManagerProps) {
   const [photos, setPhotos] = useState(initialPhotos);
-  const [error, setError] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [isUploading, startUpload] = useTransition();
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(
     null,
   );
   const [, startDelete] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const atLimit = photos.length >= MAX_PORTFOLIO_PHOTOS;
 
+  const {
+    execute: runUpload,
+    isPending: isUploading,
+    isSuccess: isUploadSuccess,
+    isError: isUploadError,
+    error: uploadError,
+  } = useServerAction(uploadPortfolioPhotoAction, {
+    successDuration: UPLOAD_SUCCESS_DURATION_MS,
+    onSuccess: (result) => {
+      const typed = result as { photo?: PortfolioPhotoItem };
+      // Mantenemos el preview con el check de éxito visible durante
+      // UPLOAD_SUCCESS_DURATION_MS y recién después lo cambiamos por la
+      // foto real en la grilla, para no mostrar ambas a la vez.
+      setTimeout(() => {
+        if (typed.photo) {
+          setPhotos((prev) => [...prev, typed.photo!]);
+        }
+        setPendingPreviewUrl((current) => {
+          if (current) URL.revokeObjectURL(current);
+          return null;
+        });
+      }, UPLOAD_SUCCESS_DURATION_MS);
+    },
+    onError: () => {
+      setPendingPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return null;
+      });
+    },
+  });
+
   function uploadFile(file: File) {
-    setError(null);
-    const previewUrl = URL.createObjectURL(file);
-    setPendingPreviewUrl(previewUrl);
+    setPendingPreviewUrl(URL.createObjectURL(file));
 
     const formData = new FormData();
     formData.set("photo", file);
-
-    startUpload(async () => {
-      try {
-        const result = await uploadPortfolioPhotoAction(formData);
-        if (result.error) {
-          setError(result.error);
-          return;
-        }
-        if (result.photo) {
-          setPhotos((prev) => [...prev, result.photo!]);
-        }
-      } catch {
-        setError("No pudimos subir la imagen, intentá de nuevo");
-      } finally {
-        URL.revokeObjectURL(previewUrl);
-        setPendingPreviewUrl(null);
-      }
-    });
+    runUpload(formData);
   }
 
   function handleFileInputChange(file: File | undefined) {
     if (!file) return;
-    if (atLimit) {
-      setError(
-        `Llegaste al límite de ${MAX_PORTFOLIO_PHOTOS} fotos. Borrá alguna para subir otra.`,
-      );
-      return;
-    }
+    if (atLimit) return;
     uploadFile(file);
   }
 
@@ -75,13 +83,13 @@ export function PortfolioPhotoManager({
   }
 
   function handleDelete(photoId: string) {
-    setError(null);
+    setDeleteError(null);
     setDeletingId(photoId);
     startDelete(async () => {
       const result = await deletePortfolioPhotoAction({ photoId });
       setDeletingId(null);
       if (result.error) {
-        setError(result.error);
+        setDeleteError(result.error);
         return;
       }
       setPhotos((prev) => prev.filter((photo) => photo.id !== photoId));
@@ -132,7 +140,13 @@ export function PortfolioPhotoManager({
                 className="h-full w-full rounded-2xl object-cover opacity-60"
               />
               <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40">
-                <Spinner className="h-6 w-6 text-white" />
+                {isUploadSuccess ? (
+                  <span className="text-2xl text-white" aria-hidden="true">
+                    ✓
+                  </span>
+                ) : (
+                  <Spinner className="h-6 w-6 text-white" />
+                )}
               </div>
             </div>
           )}
@@ -151,9 +165,7 @@ export function PortfolioPhotoManager({
             isDraggingOver ? "border-sb-blue bg-sb-card-blue" : "border-sb-border"
           }`}
         >
-          <p className="text-[15px] text-sb-muted">
-            Arrastrá una foto acá o
-          </p>
+          <p className="text-[15px] text-sb-muted">Arrastrá una foto acá o</p>
           <label className="mt-2 inline-block cursor-pointer text-[15px] font-medium text-sb-blue underline">
             elegí un archivo
             <input
@@ -169,7 +181,19 @@ export function PortfolioPhotoManager({
         </div>
       )}
 
-      {error && <p className="text-sm text-sb-error">{error}</p>}
+      {isUploading && (
+        <p className="flex items-center gap-2 text-sm text-sb-muted">
+          <Spinner className="h-4 w-4" />
+          Subiendo foto...
+        </p>
+      )}
+      {isUploadSuccess && (
+        <p className="text-sm text-sb-success">Foto agregada</p>
+      )}
+      {isUploadError && uploadError && (
+        <p className="text-sm text-sb-error">{uploadError}</p>
+      )}
+      {deleteError && <p className="text-sm text-sb-error">{deleteError}</p>}
     </div>
   );
 }

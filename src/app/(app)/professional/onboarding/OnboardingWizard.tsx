@@ -6,6 +6,7 @@ import { ProvinceWithDepartments } from "@/modules/geography/queries";
 import { createProfessionalProfileAction } from "@/modules/professionals/actions";
 import { uploadAvatarAction } from "@/modules/users/actions";
 import { Spinner } from "@/components/ui/Spinner";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type SecondaryTradeRow = {
   tradeId: string;
@@ -52,7 +53,15 @@ export function OnboardingWizard({
     Set<string>
   >(new Set());
 
-  const [isSubmitting, startSubmit] = useTransition();
+  // createProfessionalProfileAction redirige server-side cuando termina bien
+  // (no romper esa lógica), así que del lado del cliente solo hay pending y
+  // error visibles: el éxito se manifiesta como la navegación misma.
+  const {
+    execute: submitProfile,
+    isPending: isSubmitting,
+    isError: isSubmitError,
+    error: submitError,
+  } = useServerAction(createProfessionalProfileAction);
 
   const departmentLookup = useMemo(() => {
     const map = new Map<string, { name: string; provinceName: string }>();
@@ -154,24 +163,18 @@ export function OnboardingWizard({
     }
     setFormError(null);
 
-    startSubmit(async () => {
-      const result = await createProfessionalProfileAction({
-        bio: bio || undefined,
-        contactPhone: contactPhone || undefined,
-        primaryTradeId,
-        primaryYearsExperience: primaryYearsExperience || undefined,
-        secondaryTrades: secondaryTrades
-          .filter((trade) => trade.tradeId)
-          .map((trade) => ({
-            tradeId: trade.tradeId,
-            yearsExperience: trade.yearsExperience || undefined,
-          })),
-        departmentIds: Array.from(selectedDepartmentIds),
-      });
-
-      if (result?.error) {
-        setFormError(result.error);
-      }
+    submitProfile({
+      bio: bio || undefined,
+      contactPhone: contactPhone || undefined,
+      primaryTradeId,
+      primaryYearsExperience: primaryYearsExperience || undefined,
+      secondaryTrades: secondaryTrades
+        .filter((trade) => trade.tradeId)
+        .map((trade) => ({
+          tradeId: trade.tradeId,
+          yearsExperience: trade.yearsExperience || undefined,
+        })),
+      departmentIds: Array.from(selectedDepartmentIds),
     });
   }
 
@@ -462,7 +465,10 @@ export function OnboardingWizard({
             </div>
           )}
 
-          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          {formError && <p className="text-sm text-sb-error">{formError}</p>}
+          {isSubmitError && submitError && (
+            <p className="text-sm text-sb-error">{submitError}</p>
+          )}
 
           <div className="flex gap-2">
             <button
@@ -476,7 +482,7 @@ export function OnboardingWizard({
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-white disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-white transition-colors duration-150 ease-in-out disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isSubmitting && <Spinner className="h-4 w-4" />}
               {isSubmitting ? "Guardando..." : "Finalizar"}

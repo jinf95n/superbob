@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateProfessionalActiveStatusAction,
   updateProfessionalVerifiedStatusAction,
 } from "@/modules/professionals/actions";
 import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type ProfessionalStatusToggleProps = {
   professionalId: string;
@@ -21,52 +20,33 @@ export function ProfessionalStatusToggle({
   isVerified,
 }: ProfessionalStatusToggleProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [pendingAction, setPendingAction] = useState<
-    "active" | "verified" | null
-  >(null);
 
-  function toggleActive() {
-    setPendingAction("active");
-    startTransition(async () => {
-      await updateProfessionalActiveStatusAction(professionalId, !isActive);
-      router.refresh();
-    });
-  }
-
-  function toggleVerified() {
-    setPendingAction("verified");
-    startTransition(async () => {
-      await updateProfessionalVerifiedStatusAction(
-        professionalId,
-        !isVerified,
-      );
-      router.refresh();
-    });
-  }
+  const activeToggle = useServerAction(updateProfessionalActiveStatusAction, {
+    onSuccess: () => router.refresh(),
+  });
+  const verifiedToggle = useServerAction(
+    updateProfessionalVerifiedStatusAction,
+    { onSuccess: () => router.refresh() },
+  );
 
   return (
     <div className="flex gap-2">
       <Button
         variant="secondary"
-        className="flex items-center gap-1.5 px-2 py-1 text-xs"
-        disabled={isPending}
-        onClick={toggleActive}
+        size="sm"
+        isPending={activeToggle.isPending}
+        isSuccess={activeToggle.isSuccess}
+        onClick={() => activeToggle.execute(professionalId, !isActive)}
       >
-        {isPending && pendingAction === "active" && (
-          <Spinner className="h-3 w-3" />
-        )}
         {isActive ? "Desactivar" : "Activar"}
       </Button>
       <Button
         variant="secondary"
-        className="flex items-center gap-1.5 px-2 py-1 text-xs"
-        disabled={isPending}
-        onClick={toggleVerified}
+        size="sm"
+        isPending={verifiedToggle.isPending}
+        isSuccess={verifiedToggle.isSuccess}
+        onClick={() => verifiedToggle.execute(professionalId, !isVerified)}
       >
-        {isPending && pendingAction === "verified" && (
-          <Spinner className="h-3 w-3" />
-        )}
         {isVerified ? "Quitar verificación" : "Verificar"}
       </Button>
     </div>

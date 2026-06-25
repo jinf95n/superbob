@@ -1,52 +1,43 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { submitClientReviewAction } from "@/modules/reviews/actions";
 import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type ClientReviewFormProps = {
   workRecordId: string;
 };
 
+const SUCCESS_REDIRECT_DELAY_MS = 1500;
+
 export function ClientReviewForm({ workRecordId }: ClientReviewFormProps) {
+  const router = useRouter();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [isSubmitting, startSubmit] = useTransition();
+  const [ratingError, setRatingError] = useState<string | null>(null);
+
+  const { execute, isPending, isSuccess, isError, error } = useServerAction(
+    submitClientReviewAction,
+    {
+      successDuration: SUCCESS_REDIRECT_DELAY_MS,
+      onSuccess: () => {
+        setTimeout(() => router.push("/notifications"), SUCCESS_REDIRECT_DELAY_MS);
+      },
+    },
+  );
 
   function handleSubmit() {
     if (rating === 0) {
-      setError("Elegí una calificación");
+      setRatingError("Elegí una calificación");
       return;
     }
-    setError(null);
-
-    startSubmit(async () => {
-      const result = await submitClientReviewAction({
-        workRecordId,
-        rating,
-        comment: comment || undefined,
-      });
-
-      if (result.error) {
-        setError(result.error);
-        return;
-      }
-
-      setSuccess(true);
-    });
+    setRatingError(null);
+    execute({ workRecordId, rating, comment: comment || undefined });
   }
 
-  if (success) {
-    return (
-      <p className="mt-6 rounded-2xl bg-sb-card-blue p-5 text-[15px] text-sb-text">
-        Listo. Tu reseña se publica en 14 días o antes si el profesional
-        también califica.
-      </p>
-    );
-  }
+  const isLocked = isPending || isSuccess;
 
   return (
     <div className="mt-6 rounded-2xl bg-white p-5">
@@ -58,6 +49,7 @@ export function ClientReviewForm({ workRecordId }: ClientReviewFormProps) {
             type="button"
             aria-label={`${value} estrellas`}
             onClick={() => setRating(value)}
+            disabled={isLocked}
             className={value <= rating ? "text-sb-orange" : "text-sb-border"}
           >
             ★
@@ -77,19 +69,33 @@ export function ClientReviewForm({ workRecordId }: ClientReviewFormProps) {
         onChange={(e) => setComment(e.target.value)}
         maxLength={1000}
         rows={4}
-        className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text focus:border-sb-blue focus:outline-none"
+        disabled={isLocked}
+        className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text focus:border-sb-blue focus:outline-none disabled:opacity-60"
       />
 
-      {error && <p className="mt-2 text-sm text-sb-error">{error}</p>}
+      {(ratingError || (isError && error)) && (
+        <p className="mt-2 text-sm text-sb-error">{ratingError ?? error}</p>
+      )}
+
+      {isSuccess && (
+        <p className="mt-2 text-sm text-sb-muted">
+          Tu reseña se publica en 14 días o antes si el profesional también
+          califica.
+        </p>
+      )}
 
       <Button
         type="button"
         onClick={handleSubmit}
-        disabled={isSubmitting}
-        className="mt-4 flex w-full items-center justify-center gap-2"
+        isPending={isPending}
+        isSuccess={isSuccess}
+        isError={isError}
+        pendingText="Enviando reseña..."
+        successText="Reseña enviada"
+        fullWidth
+        className="mt-4"
       >
-        {isSubmitting && <Spinner className="h-4 w-4" />}
-        {isSubmitting ? "Publicando..." : "Publicar reseña"}
+        Publicar reseña
       </Button>
     </div>
   );

@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ReportStatus } from "@prisma/client";
 import { updateReportStatusAction } from "@/modules/reports/actions";
 import { Button } from "@/components/ui/Button";
-import { Spinner } from "@/components/ui/Spinner";
+import { useServerAction } from "@/lib/hooks/useServerAction";
 
 type ReportStatusButtonProps = {
   reportId: string;
@@ -17,18 +16,12 @@ export function ReportStatusButton({
   status,
 }: ReportStatusButtonProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [pendingStatus, setPendingStatus] = useState<ReportStatus | null>(
-    null,
-  );
-
-  function markAs(newStatus: ReportStatus) {
-    setPendingStatus(newStatus);
-    startTransition(async () => {
-      await updateReportStatusAction(reportId, newStatus);
-      router.refresh();
-    });
-  }
+  const reviewedAction = useServerAction(updateReportStatusAction, {
+    onSuccess: () => router.refresh(),
+  });
+  const resolvedAction = useServerAction(updateReportStatusAction, {
+    onSuccess: () => router.refresh(),
+  });
 
   if (status === "resolved") {
     return null;
@@ -39,25 +32,21 @@ export function ReportStatusButton({
       {status === "pending" && (
         <Button
           variant="secondary"
-          className="flex items-center gap-1.5 px-2 py-1 text-xs"
-          disabled={isPending}
-          onClick={() => markAs("reviewed")}
+          size="sm"
+          isPending={reviewedAction.isPending}
+          isSuccess={reviewedAction.isSuccess}
+          onClick={() => reviewedAction.execute(reportId, "reviewed")}
         >
-          {isPending && pendingStatus === "reviewed" && (
-            <Spinner className="h-3 w-3" />
-          )}
           Marcar como revisado
         </Button>
       )}
       <Button
         variant="primary"
-        className="flex items-center gap-1.5 px-2 py-1 text-xs"
-        disabled={isPending}
-        onClick={() => markAs("resolved")}
+        size="sm"
+        isPending={resolvedAction.isPending}
+        isSuccess={resolvedAction.isSuccess}
+        onClick={() => resolvedAction.execute(reportId, "resolved")}
       >
-        {isPending && pendingStatus === "resolved" && (
-          <Spinner className="h-3 w-3" />
-        )}
         Marcar como resuelto
       </Button>
     </div>
