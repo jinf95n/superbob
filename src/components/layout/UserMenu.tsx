@@ -96,7 +96,7 @@ export function UserMenu({
             >
               Mis notificaciones
             </Link>
-            {professionalSlug && (
+            {professionalSlug && !isAdmin && (
               <>
                 <Link
                   href={`/p/${professionalSlug}`}
