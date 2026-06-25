@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { registerAction } from "@/modules/users/actions";
@@ -18,9 +18,11 @@ export function RegisterForm() {
   const [state, formAction] = useActionState(registerAction, initialState);
   const router = useRouter();
   const { toast } = useToast();
+  const toastShownRef = useRef(false);
 
   useEffect(() => {
-    if (state.success && state.redirectTo) {
+    if (state.success && state.redirectTo && !toastShownRef.current) {
+      toastShownRef.current = true;
       toast.success("Cuenta creada. Bienvenido a SUPERBOB.");
       router.push(state.redirectTo);
     }
