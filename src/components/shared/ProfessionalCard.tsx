@@ -8,13 +8,6 @@ type ProfessionalCardProps = {
   className?: string;
 };
 
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-}
-
 /**
  * FeaturedProfessional solo trae el nombre del oficio (no el slug real de
  * trades). Replica exactamente el slugify de prisma/seed/trades.ts para
@@ -85,10 +78,14 @@ export function ProfessionalCard({
               />
             </div>
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-white bg-white">
-              <span className="font-display text-xl font-bold text-sb-blue">
-                {getInitials(professional.fullName)}
-              </span>
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-sb-blue">
+              <Image
+                src="/images/isotipo.png"
+                alt="SUPERBOB"
+                width={48}
+                height={48}
+                className="object-contain brightness-0 invert opacity-60"
+              />
             </div>
           )}
         </div>

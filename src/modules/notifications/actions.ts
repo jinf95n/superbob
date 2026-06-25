@@ -19,6 +19,14 @@ export async function createNotification(
   type: string,
   payload: NotificationPayload,
 ): Promise<void> {
+  if (type === "work_confirmed") {
+    const existing = await prisma.notification.findFirst({
+      where: { userId, type, readAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+  }
+
   await prisma.notification.create({
     data: { userId, type, payload },
   });

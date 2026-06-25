@@ -8,13 +8,6 @@ type ProfessionalSearchCardProps = {
   professional: SearchableProfessional;
 };
 
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-}
-
 function StarIcon({ filled }: { filled: boolean }) {
   return (
     <svg
@@ -87,10 +80,14 @@ export function ProfessionalSearchCard({
               />
             </div>
           ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full border-[3px] border-white bg-white">
-              <span className="font-display text-xl font-bold text-sb-blue">
-                {getInitials(professional.fullName)}
-              </span>
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-[3px] border-white bg-sb-blue">
+              <Image
+                src="/images/isotipo.png"
+                alt="SUPERBOB"
+                width={48}
+                height={48}
+                className="object-contain brightness-0 invert opacity-60"
+              />
             </div>
           )}
         </div>
@@ -166,31 +163,6 @@ export function ProfessionalSearchCard({
             <span className="text-[11px] text-sb-muted">Desde</span>
           </div>
         </div>
-
-        {professional.latestReview ? (
-          <div className="mt-[10px] rounded-xl bg-sb-bg p-3">
-            <div className="mb-1 flex items-center gap-1">
-              <span className="text-xs text-sb-orange">
-                {"★".repeat(professional.latestReview.rating)}
-                {"☆".repeat(5 - professional.latestReview.rating)}
-              </span>
-              <span className="ml-1 text-[11px] text-sb-muted">
-                {professional.latestReview.reviewerName}
-              </span>
-            </div>
-            {professional.latestReview.comment && (
-              <p className="text-[12px] italic leading-relaxed text-sb-muted [-webkit-box-orient:vertical] [-webkit-line-clamp:2] [display:-webkit-box] overflow-hidden">
-                &quot;{professional.latestReview.comment}&quot;
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="mt-[10px] rounded-xl bg-sb-bg p-3 text-center">
-            <p className="text-[12px] text-sb-muted">
-              Todavía sin reseñas · Sé el primero en calificarlo
-            </p>
-          </div>
-        )}
 
         <div className="mt-3 flex flex-col gap-2">
           <Link

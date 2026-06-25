@@ -312,6 +312,21 @@ export async function confirmWorkFromContactAction(
     return { error: "Datos de cliente inválidos" };
   }
 
+  const existingWorkRecord = await prisma.workRecord.findFirst({
+    where: { professionalId, clientId },
+    select: { id: true, type: true },
+  });
+
+  if (existingWorkRecord) {
+    if (existingWorkRecord.type === "contact" && type === "completed") {
+      await prisma.workRecord.update({
+        where: { id: existingWorkRecord.id },
+        data: { type: "completed" },
+      });
+    }
+    return { workRecordId: existingWorkRecord.id };
+  }
+
   const professional = await prisma.professionalProfile.findUnique({
     where: { id: professionalId },
     select: { user: { select: { fullName: true } } },

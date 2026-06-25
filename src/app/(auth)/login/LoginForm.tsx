@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginAction } from "@/modules/users/actions";
@@ -19,16 +19,30 @@ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const toastShownRef = useRef(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     if (state.success && state.redirectTo && !toastShownRef.current) {
       toastShownRef.current = true;
+      setIsNavigating(true);
       toast.success("Bienvenido de nuevo.");
       router.push(state.redirectTo);
     }
   }, [state, router, toast]);
 
   return (
+    <>
+    {isNavigating && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="h-8 w-8 animate-spin text-sb-blue" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <p className="text-[14px] text-sb-muted">Ingresando...</p>
+        </div>
+      </div>
+    )}
     <main className="w-full max-w-[400px] px-6 py-8 lg:px-8 lg:py-12">
       <p className="font-display text-[24px] font-extrabold text-sb-blue lg:hidden">
         SUPERBOB
@@ -99,5 +113,6 @@ export function LoginForm() {
         </Link>
       </p>
     </main>
+    </>
   );
 }
