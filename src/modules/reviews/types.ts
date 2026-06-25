@@ -3,7 +3,7 @@ import { ReviewType, WorkRecordType } from "@prisma/client";
 
 export const ConfirmWorkFromContactSchema = z.object({
   contactEventId: z.string().uuid("contactEventId inválido"),
-  clientId: z.string().uuid("clientId inválido"),
+  clientId: z.string().min(1),
   tradeId: z.string().uuid("Elegí un oficio"),
   type: z
     .string()
