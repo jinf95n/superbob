@@ -118,6 +118,11 @@ model ProfessionalProfile {
   bio                    String?
   contactPhone           String?   @map("contact_phone")
   contactPhoneVerifiedAt DateTime? @map("contact_phone_verified_at")
+  // Zona de origen del profesional — la que sale en su card y en el hero del perfil.
+  // Distinta de coverageAreas (zonas donde trabaja). Nullable para compatibilidad
+  // con perfiles creados antes de este campo; el display hace fallback al primer
+  // coverage area.
+  primaryDepartmentId    String?   @map("primary_department_id")
   isActive               Boolean   @default(true) @map("is_active")
   isVerified             Boolean   @default(false) @map("is_verified")
   qrCodeUrl              String?   @map("qr_code_url")
@@ -127,6 +132,7 @@ model ProfessionalProfile {
   user               User                       @relation(fields: [userId], references: [id])
   professionalTrades ProfessionalTrade[]
   coverageAreas      ProfessionalCoverageArea[]
+  primaryDepartment  Department?                @relation("PrimaryDepartment", fields: [primaryDepartmentId], references: [id])
   workRecords        WorkRecord[]
   reviewsReceived    Review[]                   @relation("ReviewedProfessional")
   clientRatingsGiven ClientRating[]
@@ -205,10 +211,11 @@ model Department {
   name       String
   slug       String @unique
 
-  province      Province                   @relation(fields: [provinceId], references: [id])
-  localities    Locality[]
-  coverageAreas ProfessionalCoverageArea[]
-  users         User[]
+  province             Province                   @relation(fields: [provinceId], references: [id])
+  localities           Locality[]
+  coverageAreas        ProfessionalCoverageArea[]
+  primaryProfessionals ProfessionalProfile[]      @relation("PrimaryDepartment")
+  users                User[]
 
   @@map("departments")
 }

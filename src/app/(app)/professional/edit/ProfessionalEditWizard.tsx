@@ -1,26 +1,37 @@
 "use client";
 
-import { useMemo, useState, useTransition, type ChangeEvent } from "react";
+import { useMemo, useState } from "react";
 import { TradeCategoryWithTrades } from "@/modules/trades/queries";
 import { ProvinceWithDepartments } from "@/modules/geography/queries";
 import { updateProfessionalProfileAction } from "@/modules/professionals/actions";
 import { ProfessionalProfileForEdit } from "@/modules/professionals/types";
-import { uploadAvatarAction } from "@/modules/users/actions";
 import { PortfolioPhotoItem } from "@/modules/photos/types";
+import { AvatarUploader } from "@/components/shared/AvatarUploader";
 import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager";
 import { BioBuilder } from "@/components/shared/BioBuilder";
 import { Spinner } from "@/components/ui/Spinner";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
-const PRIMARY_BUTTON_CLASSES =
-  "flex h-[52px] w-full items-center justify-center rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50";
-const SECONDARY_BUTTON_CLASSES =
-  "flex h-[52px] w-full items-center justify-center rounded-full border border-sb-border text-[15px] font-medium text-sb-text";
+type Tab = "info" | "trades" | "coverage" | "photos";
 
-type SecondaryTradeRow = {
+const TABS: { key: Tab; label: string }[] = [
+  { key: "info", label: "Información" },
+  { key: "trades", label: "Oficios" },
+  { key: "coverage", label: "Cobertura" },
+  { key: "photos", label: "Fotos" },
+];
+
+type TradeRow = {
+  localId: number;
   tradeId: string;
   yearsExperience: string;
+  isPrimary: boolean;
 };
+
+let _localIdCounter = 0;
+function nextLocalId() {
+  return ++_localIdCounter;
+}
 
 type ProfessionalEditWizardProps = {
   profile: ProfessionalProfileForEdit;
@@ -31,58 +42,76 @@ type ProfessionalEditWizardProps = {
   initialPhotos: PortfolioPhotoItem[];
 };
 
-const MAX_SECONDARY_TRADES = 4;
+const MAX_TRADES = 5;
 
 export function ProfessionalEditWizard({
   profile,
-  accountPhone,
   initialAvatarUrl,
   tradeCategories,
   provinces,
   initialPhotos,
 }: ProfessionalEditWizardProps) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [activeTab, setActiveTab] = useState<Tab>("info");
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Paso 1
+  // --- Información tab ---
   const [bio, setBio] = useState(profile.bio ?? "");
-  const [contactPhone, setContactPhone] = useState(profile.contactPhone ?? "");
-  const [contactPhoneError, setContactPhoneError] = useState<string | null>(
-    null,
+  const [contactPhone, setContactPhone] = useState(
+    profile.contactPhone ?? "",
   );
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
   const [avatarError, setAvatarError] = useState<string | null>(null);
-  const [isUploadingAvatar, startAvatarUpload] = useTransition();
 
-  // Paso 2
-  const [primaryTradeId, setPrimaryTradeId] = useState(
-    profile.primaryTradeId ?? "",
-  );
-  const [primaryYearsExperience, setPrimaryYearsExperience] = useState(
-    profile.primaryYearsExperience?.toString() ?? "",
-  );
-  const [secondaryTrades, setSecondaryTrades] = useState<SecondaryTradeRow[]>(
-    profile.secondaryTrades.map((trade) => ({
-      tradeId: trade.tradeId,
-      yearsExperience: trade.yearsExperience?.toString() ?? "",
-    })),
-  );
+  // --- Oficios tab ---
+  const [trades, setTrades] = useState<TradeRow[]>(() => {
+    const rows: TradeRow[] = [];
+    if (profile.primaryTradeId) {
+      rows.push({
+        localId: nextLocalId(),
+        tradeId: profile.primaryTradeId,
+        yearsExperience: profile.primaryYearsExperience?.toString() ?? "",
+        isPrimary: true,
+      });
+    }
+    for (const t of profile.secondaryTrades) {
+      rows.push({
+        localId: nextLocalId(),
+        tradeId: t.tradeId,
+        yearsExperience: t.yearsExperience?.toString() ?? "",
+        isPrimary: false,
+      });
+    }
+    return rows;
+  });
+  const [addTradeId, setAddTradeId] = useState("");
+  const [addYears, setAddYears] = useState("");
 
-  // Paso 3
+  // --- Cobertura tab ---
   const [currentProvinceId, setCurrentProvinceId] = useState(
     provinces[0]?.id ?? "",
   );
+  const [currentDepartmentId, setCurrentDepartmentId] = useState("");
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState<
     Set<string>
   >(new Set(profile.departmentIds));
+  const [primaryDepartmentId, setPrimaryDepartmentId] = useState(
+    profile.primaryDepartmentId ?? "",
+  );
 
-  // updateProfessionalProfileAction redirige server-side cuando termina bien
-  // (no romper esa lógica), así que del lado del cliente solo hay pending y
-  // error visibles: el éxito se manifiesta como la navegación misma.
   const { execute: submitChanges, isPending: isSubmitting } = useServerAction(
     updateProfessionalProfileAction,
     { onError: () => setFormError("Error al guardar. Intentá de nuevo.") },
   );
+
+  const tradeLookup = useMemo(() => {
+    const map = new Map<string, { name: string }>();
+    for (const category of tradeCategories) {
+      for (const trade of category.trades) {
+        map.set(trade.id, { name: trade.name });
+      }
+    }
+    return map;
+  }, [tradeCategories]);
 
   const departmentLookup = useMemo(() => {
     const map = new Map<string, { name: string; provinceName: string }>();
@@ -98,274 +127,228 @@ export function ProfessionalEditWizard({
   }, [provinces]);
 
   const currentProvince = provinces.find((p) => p.id === currentProvinceId);
+  const usedTradeIds = new Set(trades.map((t) => t.tradeId).filter(Boolean));
 
-  function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setAvatarError(null);
-    const previewUrl = URL.createObjectURL(file);
-    setAvatarUrl(previewUrl);
-
-    const formData = new FormData();
-    formData.set("avatar", file);
-
-    startAvatarUpload(async () => {
-      try {
-        const result = await uploadAvatarAction(formData);
-        if (result.error) {
-          setAvatarError(result.error);
-          setAvatarUrl(initialAvatarUrl);
-          return;
-        }
-        if (result.avatarUrl) {
-          setAvatarUrl(result.avatarUrl);
-        }
-      } catch {
-        setAvatarError("No pudimos subir la imagen, intentá de nuevo");
-        setAvatarUrl(initialAvatarUrl);
-      } finally {
-        URL.revokeObjectURL(previewUrl);
-      }
-    });
-  }
-
-  function addSecondaryTrade() {
-    if (secondaryTrades.length >= MAX_SECONDARY_TRADES) return;
-    setSecondaryTrades((prev) => [
-      ...prev,
-      { tradeId: "", yearsExperience: "" },
-    ]);
-  }
-
-  function updateSecondaryTrade(
-    index: number,
-    patch: Partial<SecondaryTradeRow>,
-  ) {
-    setSecondaryTrades((prev) =>
-      prev.map((trade, i) => (i === index ? { ...trade, ...patch } : trade)),
+  function makePrimary(localId: number) {
+    setTrades((prev) =>
+      prev.map((t) => ({ ...t, isPrimary: t.localId === localId })),
     );
   }
 
-  function removeSecondaryTrade(index: number) {
-    setSecondaryTrades((prev) => prev.filter((_, i) => i !== index));
+  function removeTrade(localId: number) {
+    setTrades((prev) => prev.filter((t) => t.localId !== localId));
   }
 
-  function toggleDepartment(departmentId: string) {
+  function updateTradeField(
+    localId: number,
+    patch: Partial<Pick<TradeRow, "tradeId" | "yearsExperience">>,
+  ) {
+    setTrades((prev) =>
+      prev.map((t) => (t.localId === localId ? { ...t, ...patch } : t)),
+    );
+  }
+
+  function addTrade() {
+    if (!addTradeId) return;
+    const hasPrimary = trades.some((t) => t.isPrimary);
+    setTrades((prev) => [
+      ...prev,
+      {
+        localId: nextLocalId(),
+        tradeId: addTradeId,
+        yearsExperience: addYears,
+        isPrimary: !hasPrimary,
+      },
+    ]);
+    setAddTradeId("");
+    setAddYears("");
+  }
+
+  function addDepartment() {
+    if (!currentDepartmentId) return;
+    setSelectedDepartmentIds((prev) => new Set([...prev, currentDepartmentId]));
+    setCurrentDepartmentId("");
+  }
+
+  function removeDepartment(id: string) {
     setSelectedDepartmentIds((prev) => {
       const next = new Set(prev);
-      if (next.has(departmentId)) {
-        next.delete(departmentId);
-      } else {
-        next.add(departmentId);
-      }
+      next.delete(id);
       return next;
     });
+    if (primaryDepartmentId === id) {
+      setPrimaryDepartmentId("");
+    }
   }
 
-  function goToStep2() {
+  function handleSubmit() {
     if (!contactPhone.trim()) {
-      setContactPhoneError("El teléfono de contacto es obligatorio");
+      setActiveTab("info");
+      setFormError("El teléfono de contacto es obligatorio");
       return;
     }
-    setContactPhoneError(null);
-    setFormError(null);
-    setStep(2);
-  }
-
-  function goToStep3() {
-    if (!primaryTradeId) {
+    const primaryTrade = trades.find((t) => t.isPrimary);
+    if (!primaryTrade?.tradeId) {
+      setActiveTab("trades");
       setFormError("Elegí un oficio principal");
       return;
     }
-    setFormError(null);
-    setStep(3);
-  }
-
-  function goToStep4() {
     if (selectedDepartmentIds.size === 0) {
+      setActiveTab("coverage");
       setFormError("Elegí al menos una zona de cobertura");
       return;
     }
     setFormError(null);
-    setStep(4);
-  }
-
-  function handleSubmit() {
-    setFormError(null);
-
     submitChanges({
       bio: bio || undefined,
       contactPhone,
-      primaryTradeId,
-      primaryYearsExperience: primaryYearsExperience || undefined,
-      secondaryTrades: secondaryTrades
-        .filter((trade) => trade.tradeId)
-        .map((trade) => ({
-          tradeId: trade.tradeId,
-          yearsExperience: trade.yearsExperience || undefined,
+      primaryTradeId: primaryTrade.tradeId,
+      primaryYearsExperience: primaryTrade.yearsExperience || undefined,
+      secondaryTrades: trades
+        .filter((t) => !t.isPrimary && t.tradeId)
+        .map((t) => ({
+          tradeId: t.tradeId,
+          yearsExperience: t.yearsExperience || undefined,
         })),
       departmentIds: Array.from(selectedDepartmentIds),
+      primaryDepartmentId: primaryDepartmentId || undefined,
     });
   }
 
   return (
-    <div className="mt-6">
-      <p className="text-sm font-medium text-sb-muted">Paso {step} de 4</p>
+    <div className="mt-5 pb-24 lg:pb-0">
+      {/* Tab nav */}
+      <nav className="flex overflow-x-auto border-b border-sb-border">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => {
+              setActiveTab(tab.key);
+              setFormError(null);
+            }}
+            className={`shrink-0 px-4 py-3 text-[14px] font-medium transition-colors ${
+              activeTab === tab.key
+                ? "border-b-2 border-sb-blue text-sb-blue"
+                : "text-sb-muted hover:text-sb-text"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
 
-      {step === 1 && (
-        <section className="mt-4 flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium text-sb-text">
-              Foto de perfil
-            </label>
-            <div className="mt-2 flex items-center gap-3">
-              <div className="relative h-16 w-16 shrink-0">
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatarUrl}
-                    alt="Foto de perfil"
-                    className="h-16 w-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-sb-card-blue" />
-                )}
-                {isUploadingAvatar && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
-                    <Spinner className="h-6 w-6 text-white" />
-                  </div>
-                )}
-              </div>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleAvatarChange}
-                disabled={isUploadingAvatar}
-                className="text-sm"
+      {/* Tab content */}
+      <div className="mt-5">
+        {/* --- Información --- */}
+        {activeTab === "info" && (
+          <section className="flex flex-col gap-5">
+            <div>
+              <p className="mb-2 text-[13px] font-medium text-sb-muted">
+                Foto de perfil
+              </p>
+              <AvatarUploader
+                avatarUrl={avatarUrl}
+                fullName=""
+                size="md"
+                onUpload={(url) => {
+                  setAvatarUrl(url);
+                  setAvatarError(null);
+                }}
+                onError={(err) => setAvatarError(err)}
               />
+              {avatarError && (
+                <p className="mt-1.5 text-[13px] text-sb-error">{avatarError}</p>
+              )}
             </div>
-            {avatarError && (
-              <p className="mt-1 text-sm text-sb-error">{avatarError}</p>
-            )}
-          </div>
 
-          <div>
-            <label htmlFor="bio" className="block text-sm font-medium text-sb-text">
-              Contanos sobre tu trabajo
-            </label>
-            <div className="mt-2">
+            <div>
+              <p className="mb-2 text-[13px] font-medium text-sb-muted">
+                Descripción
+              </p>
               <BioBuilder initialValue={profile.bio} onChange={setBio} />
             </div>
-          </div>
 
-          <div>
-            <label
-              htmlFor="contactPhone"
-              className="block text-sm font-medium text-sb-text"
-            >
-              Teléfono de contacto <span className="text-sb-error">*</span>
-            </label>
-            <input
-              id="contactPhone"
-              type="tel"
-              value={contactPhone}
-              onChange={(e) => {
-                setContactPhone(e.target.value);
-                if (contactPhoneError) setContactPhoneError(null);
-              }}
-              placeholder="+54 9 11 1234-5678"
-              className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text focus:border-sb-blue focus:outline-none"
-            />
-            <p className="mt-1 text-[12px] text-sb-muted">
-              Este número es el que verán los clientes para contactarte.
-            </p>
-            {contactPhoneError && (
-              <p className="mt-1 text-[13px] text-sb-error">
-                {contactPhoneError}
+            <div>
+              <label
+                htmlFor="contactPhone"
+                className="mb-1.5 block text-[13px] font-medium text-sb-muted"
+              >
+                Teléfono de contacto{" "}
+                <span className="text-sb-error">*</span>
+              </label>
+              <input
+                id="contactPhone"
+                type="tel"
+                value={contactPhone}
+                onChange={(e) => {
+                  setContactPhone(e.target.value);
+                  if (formError) setFormError(null);
+                }}
+                placeholder="+54 9 11 1234-5678"
+                className="w-full rounded-[10px] border-[1.5px] border-sb-border px-3.5 py-3 text-[15px] text-sb-text outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10"
+              />
+              <p className="mt-1 text-[12px] text-sb-muted">
+                Este número es el que verán los clientes.
+              </p>
+              {formError && (
+                <p className="mt-1.5 text-[13px] text-sb-error">{formError}</p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* --- Oficios --- */}
+        {activeTab === "trades" && (
+          <section className="flex flex-col gap-4">
+            {trades.length === 0 && (
+              <p className="text-[14px] text-sb-muted">
+                No tenés oficios todavía. Agregá uno abajo.
               </p>
             )}
-          </div>
 
-          <button type="button" onClick={goToStep2} className={PRIMARY_BUTTON_CLASSES}>
-            Siguiente
-          </button>
-        </section>
-      )}
-
-      {step === 2 && (
-        <section className="mt-4 flex flex-col gap-4">
-          <div>
-            <label
-              htmlFor="primaryTrade"
-              className="block text-sm font-medium text-sb-text"
-            >
-              Oficio principal
-            </label>
-            <select
-              id="primaryTrade"
-              value={primaryTradeId}
-              onChange={(e) => setPrimaryTradeId(e.target.value)}
-              className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text"
-            >
-              <option value="">Elegí un oficio</option>
-              {tradeCategories.map((category) => (
-                <optgroup key={category.id} label={category.name}>
-                  {category.trades.map((trade) => (
-                    <option key={trade.id} value={trade.id}>
-                      {trade.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-
-            <label
-              htmlFor="primaryYears"
-              className="mt-2 block text-sm font-medium text-sb-text"
-            >
-              Años de experiencia
-            </label>
-            <input
-              id="primaryYears"
-              type="number"
-              min={0}
-              max={80}
-              value={primaryYearsExperience}
-              onChange={(e) => setPrimaryYearsExperience(e.target.value)}
-              className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text"
-            />
-          </div>
-
-          <div>
-            <p className="text-sm font-medium text-sb-text">
-              Oficios secundarios (hasta {MAX_SECONDARY_TRADES})
-            </p>
-            <div className="mt-2 flex flex-col gap-3">
-              {secondaryTrades.map((trade, index) => (
+            <div className="flex flex-col gap-3">
+              {trades.map((trade) => (
                 <div
-                  key={index}
-                  className="flex flex-col gap-2 rounded border border-sb-border p-3"
+                  key={trade.localId}
+                  className="rounded-xl border border-sb-border bg-white p-4"
                 >
-                  <select
-                    value={trade.tradeId}
-                    onChange={(e) =>
-                      updateSecondaryTrade(index, { tradeId: e.target.value })
-                    }
-                    className="w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text"
-                  >
-                    <option value="">Elegí un oficio</option>
-                    {tradeCategories.map((category) => (
-                      <optgroup key={category.id} label={category.name}>
-                        {category.trades.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <select
+                      value={trade.tradeId}
+                      onChange={(e) =>
+                        updateTradeField(trade.localId, {
+                          tradeId: e.target.value,
+                        })
+                      }
+                      className="flex-1 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                    >
+                      <option value="">Elegí un oficio</option>
+                      {tradeCategories.map((category) => (
+                        <optgroup key={category.id} label={category.name}>
+                          {category.trades.map((t) => (
+                            <option
+                              key={t.id}
+                              value={t.id}
+                              disabled={
+                                usedTradeIds.has(t.id) &&
+                                t.id !== trade.tradeId
+                              }
+                            >
+                              {t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    {trade.isPrimary && (
+                      <span className="shrink-0 rounded-full bg-sb-card-blue px-2.5 py-0.5 text-[12px] font-medium text-sb-blue">
+                        Principal
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3">
                     <input
                       type="number"
                       min={0}
@@ -373,174 +356,290 @@ export function ProfessionalEditWizard({
                       placeholder="Años de experiencia"
                       value={trade.yearsExperience}
                       onChange={(e) =>
-                        updateSecondaryTrade(index, {
+                        updateTradeField(trade.localId, {
                           yearsExperience: e.target.value,
                         })
                       }
-                      className="flex-1 rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text"
+                      className="w-40 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
                     />
-                    <button
-                      type="button"
-                      onClick={() => removeSecondaryTrade(index)}
-                      className="text-sm text-sb-error"
-                    >
-                      Quitar
-                    </button>
+                    <span className="text-[13px] text-sb-muted">
+                      años de experiencia
+                    </span>
                   </div>
+
+                  {!trade.isPrimary && (
+                    <div className="mt-3 flex items-center gap-4 border-t border-sb-border pt-3">
+                      <button
+                        type="button"
+                        onClick={() => makePrimary(trade.localId)}
+                        className="text-[13px] font-medium text-sb-blue"
+                      >
+                        Hacer principal
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeTrade(trade.localId)}
+                        className="text-[13px] font-medium text-sb-error"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
-            {secondaryTrades.length < MAX_SECONDARY_TRADES && (
-              <button
-                type="button"
-                onClick={addSecondaryTrade}
-                className="mt-2 text-sm font-medium text-sb-blue underline"
-              >
-                + Agregar oficio secundario
-              </button>
-            )}
-          </div>
-
-          {formError && <p className="text-sm text-sb-error">{formError}</p>}
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className={SECONDARY_BUTTON_CLASSES}
-            >
-              Atrás
-            </button>
-            <button type="button" onClick={goToStep3} className={PRIMARY_BUTTON_CLASSES}>
-              Siguiente
-            </button>
-          </div>
-        </section>
-      )}
-
-      {step === 3 && (
-        <section className="mt-4 flex flex-col gap-4">
-          <div>
-            <label htmlFor="province" className="block text-sm font-medium text-sb-text">
-              Provincia
-            </label>
-            <select
-              id="province"
-              value={currentProvinceId}
-              onChange={(e) => setCurrentProvinceId(e.target.value)}
-              className="mt-1 w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text"
-            >
-              {provinces.map((province) => (
-                <option key={province.id} value={province.id}>
-                  {province.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {currentProvince && (
-            <div>
-              <p className="text-sm font-medium text-sb-text">
-                Departamentos de {currentProvince.name}
-              </p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {currentProvince.departments.map((department) => (
-                  <label
-                    key={department.id}
-                    className="flex items-center gap-2 text-sm text-sb-text"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedDepartmentIds.has(department.id)}
-                      onChange={() => toggleDepartment(department.id)}
-                    />
-                    {department.name}
-                  </label>
-                ))}
-              </div>
-              {currentProvince.departments.length === 0 && (
-                <p className="mt-1 text-sm text-sb-muted">
-                  Todavía no hay departamentos cargados para esta provincia.
+            {trades.length < MAX_TRADES && (
+              <div className="rounded-xl border border-dashed border-sb-border p-4">
+                <p className="mb-3 text-[13px] font-medium text-sb-muted">
+                  Agregar oficio
                 </p>
-              )}
-            </div>
-          )}
+                <select
+                  value={addTradeId}
+                  onChange={(e) => setAddTradeId(e.target.value)}
+                  className="w-full rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                >
+                  <option value="">Elegí un oficio</option>
+                  {tradeCategories.map((category) => (
+                    <optgroup key={category.id} label={category.name}>
+                      {category.trades.map((t) => (
+                        <option
+                          key={t.id}
+                          value={t.id}
+                          disabled={usedTradeIds.has(t.id)}
+                        >
+                          {t.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={80}
+                    placeholder="Años de exp."
+                    value={addYears}
+                    onChange={(e) => setAddYears(e.target.value)}
+                    className="w-36 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={addTrade}
+                    disabled={!addTradeId}
+                    className="flex h-10 items-center justify-center rounded-full bg-sb-blue px-4 text-[14px] font-medium text-white disabled:opacity-40"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              </div>
+            )}
 
-          {selectedDepartmentIds.size > 0 && (
+            {formError && (
+              <p className="text-[13px] text-sb-error">{formError}</p>
+            )}
+
+            {trades.length === 0 && (
+              <p className="text-[12px] text-sb-muted">
+                {tradeLookup.size} oficios disponibles
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* --- Cobertura --- */}
+        {activeTab === "coverage" && (
+          <section className="flex flex-col gap-4">
             <div>
-              <p className="text-sm font-medium text-sb-text">Zonas seleccionadas</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {Array.from(selectedDepartmentIds).map((departmentId) => {
-                  const department = departmentLookup.get(departmentId);
-                  if (!department) return null;
-                  return (
-                    <button
-                      key={departmentId}
-                      type="button"
-                      onClick={() => toggleDepartment(departmentId)}
-                      className="rounded-full bg-sb-card-blue px-3 py-1 text-sm text-sb-blue"
+              <p className="mb-2 text-[13px] font-medium text-sb-muted">
+                Agregar zona de cobertura
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <select
+                  value={currentProvinceId}
+                  onChange={(e) => {
+                    setCurrentProvinceId(e.target.value);
+                    setCurrentDepartmentId("");
+                  }}
+                  className="flex-1 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                >
+                  {provinces.map((province) => (
+                    <option key={province.id} value={province.id}>
+                      {province.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={currentDepartmentId}
+                  onChange={(e) => setCurrentDepartmentId(e.target.value)}
+                  className="flex-1 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                >
+                  <option value="">Departamento</option>
+                  {currentProvince?.departments.map((dep) => (
+                    <option
+                      key={dep.id}
+                      value={dep.id}
+                      disabled={selectedDepartmentIds.has(dep.id)}
                     >
-                      {department.name} ({department.provinceName}) ✕
-                    </button>
-                  );
-                })}
+                      {dep.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={addDepartment}
+                  disabled={!currentDepartmentId}
+                  className="h-10 shrink-0 rounded-full bg-sb-blue px-4 text-[14px] font-medium text-white disabled:opacity-40"
+                >
+                  Agregar
+                </button>
               </div>
             </div>
-          )}
 
-          {formError && <p className="text-sm text-sb-error">{formError}</p>}
+            {selectedDepartmentIds.size > 0 ? (
+              <div>
+                <p className="mb-2 text-[13px] font-medium text-sb-muted">
+                  Zonas de cobertura ({selectedDepartmentIds.size})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(selectedDepartmentIds).map((id) => {
+                    const dep = departmentLookup.get(id);
+                    if (!dep) return null;
+                    const isPrimary = primaryDepartmentId === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => removeDepartment(id)}
+                        className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] transition-colors hover:border-sb-error hover:text-sb-error ${
+                          isPrimary
+                            ? "border-sb-blue bg-sb-card-blue text-sb-blue"
+                            : "border-sb-border bg-white text-sb-text"
+                        }`}
+                      >
+                        {isPrimary && (
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="currentColor"
+                            className="shrink-0"
+                          >
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                          </svg>
+                        )}
+                        {dep.name}
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                        >
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[14px] text-sb-muted">
+                No tenés zonas seleccionadas todavía.
+              </p>
+            )}
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className={SECONDARY_BUTTON_CLASSES}
-            >
-              Atrás
-            </button>
-            <button type="button" onClick={goToStep4} className={PRIMARY_BUTTON_CLASSES}>
-              Siguiente
-            </button>
-          </div>
-        </section>
-      )}
+            {/* Zona principal */}
+            {selectedDepartmentIds.size > 0 && (
+              <div className="rounded-xl border border-sb-border bg-white p-4">
+                <label
+                  htmlFor="primaryDepartment"
+                  className="block text-[14px] font-semibold text-sb-text"
+                >
+                  ¿De dónde sos?
+                </label>
+                <p className="mt-0.5 text-[12px] text-sb-muted">
+                  Esta zona aparece en tu card y en tu perfil. Tiene que ser
+                  una de tus zonas de cobertura.
+                </p>
+                <select
+                  id="primaryDepartment"
+                  value={primaryDepartmentId}
+                  onChange={(e) => setPrimaryDepartmentId(e.target.value)}
+                  className="mt-3 w-full rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                >
+                  <option value="">Sin zona principal</option>
+                  {Array.from(selectedDepartmentIds).map((id) => {
+                    const dep = departmentLookup.get(id);
+                    if (!dep) return null;
+                    return (
+                      <option key={id} value={id}>
+                        {dep.name} ({dep.provinceName})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
 
-      {step === 4 && (
-        <section className="mt-4 flex flex-col gap-4">
-          <div>
-            <p className="text-sm font-medium text-sb-text">
-              Fotos de trabajos realizados
-            </p>
-            <p className="text-xs text-sb-muted">
+            {formError && (
+              <p className="text-[13px] text-sb-error">{formError}</p>
+            )}
+          </section>
+        )}
+
+        {/* --- Fotos --- */}
+        {activeTab === "photos" && (
+          <section>
+            <p className="mb-3 text-[13px] text-sb-muted">
               Los perfiles con fotos reciben más contactos.
             </p>
-            <div className="mt-3">
-              <PortfolioPhotoManager initialPhotos={initialPhotos} />
-            </div>
-          </div>
+            <PortfolioPhotoManager initialPhotos={initialPhotos} />
+          </section>
+        )}
+      </div>
 
-          {formError && <p className="text-sm text-sb-error">{formError}</p>}
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep(3)}
-              className={SECONDARY_BUTTON_CLASSES}
-            >
-              Atrás
-            </button>
+      {/* Save button — sticky on mobile, static on desktop */}
+      {activeTab !== "photos" && (
+        <>
+          {/* Mobile: fixed at bottom */}
+          <div className="fixed inset-x-0 bottom-0 z-10 border-t border-sb-border bg-white/95 px-4 pb-6 pt-4 backdrop-blur-sm lg:hidden">
+            {formError && (
+              <p className="mb-2 text-center text-[13px] text-sb-error">
+                {formError}
+              </p>
+            )}
             <button
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className={`${PRIMARY_BUTTON_CLASSES} gap-2`}
+              className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
             >
               {isSubmitting && <Spinner className="h-4 w-4" />}
-              {isSubmitting ? "Guardando cambios..." : "Guardar cambios"}
+              {isSubmitting ? "Guardando..." : "Guardar cambios"}
             </button>
           </div>
-        </section>
+
+          {/* Desktop: static */}
+          <div className="mt-8 hidden lg:block">
+            {formError && (
+              <p className="mb-2 text-[13px] text-sb-error">{formError}</p>
+            )}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full bg-sb-blue text-[15px] font-medium text-white disabled:opacity-50"
+            >
+              {isSubmitting && <Spinner className="h-4 w-4" />}
+              {isSubmitting ? "Guardando..." : "Guardar cambios"}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

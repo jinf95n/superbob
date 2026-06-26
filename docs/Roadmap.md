@@ -42,6 +42,7 @@ Trigger para pasar de fase
 500+ profesionales activos.
 1.000+ reseñas verificadas.
 Flujo constante de contactos mensuales.
+
 FASE 2 — Marketplace de Trabajos
 Objetivo
  
@@ -75,6 +76,7 @@ Monetización:
 Créditos para enviar propuestas.
 Leads premium.
 Mayor visibilidad.
+
 Trigger para pasar de fase
 Volumen constante de trabajos publicados.
 Profesionales obteniendo clientes regularmente.

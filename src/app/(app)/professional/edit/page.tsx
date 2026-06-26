@@ -2,11 +2,15 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { getProfessionalProfileForEdit } from "@/modules/professionals/queries";
+import {
+  getProfessionalProfileForEdit,
+  getProfileCompleteness,
+} from "@/modules/professionals/queries";
 import { getActiveTradesForFilter } from "@/modules/trades/queries";
 import { getProvincesWithDepartments } from "@/modules/geography/queries";
 import { getUserAccountInfo } from "@/modules/users/queries";
 import { getPortfolioPhotosForProfessional } from "@/modules/photos/queries";
+import { ProfileCompletionCard } from "@/components/shared/ProfileCompletionCard";
 import { ProfessionalEditWizard } from "./ProfessionalEditWizard";
 
 type ProfessionalEditPageProps = {
@@ -29,12 +33,14 @@ export default async function ProfessionalEditPage({
   const { welcome } = await searchParams;
   const showWelcome = welcome === "1";
 
-  const [tradeCategories, provinces, accountInfo, photos] = await Promise.all([
-    getActiveTradesForFilter(),
-    getProvincesWithDepartments(),
-    getUserAccountInfo(session.user.id),
-    getPortfolioPhotosForProfessional(profile.id),
-  ]);
+  const [tradeCategories, provinces, accountInfo, photos, completeness] =
+    await Promise.all([
+      getActiveTradesForFilter(),
+      getProvincesWithDepartments(),
+      getUserAccountInfo(session.user.id),
+      getPortfolioPhotosForProfessional(profile.id),
+      getProfileCompleteness(profile.id),
+    ]);
 
   return (
     <main className="mx-auto max-w-lg px-4 py-6 sm:py-8">
@@ -71,11 +77,12 @@ export default async function ProfessionalEditPage({
       )}
 
       <h1 className="font-display text-[28px] font-bold text-sb-text">
-        Editar perfil profesional
+        Perfil profesional
       </h1>
-      <p className="mt-1 text-[15px] text-sb-muted">
-        Actualizá tus datos, oficios, zonas y fotos.
-      </p>
+
+      <div className="mt-4">
+        <ProfileCompletionCard completeness={completeness} />
+      </div>
 
       <ProfessionalEditWizard
         profile={profile}

@@ -9,8 +9,11 @@ import { getUserRole } from "./queries";
 import {
   AuthActionState,
   LoginSchema,
+  PasswordResetActionState,
   PhoneOtpActionState,
   RegisterSchema,
+  RequestPasswordResetSchema,
+  ResetPasswordSchema,
   SendPhoneOtpSchema,
   UpdateUserProfileActionState,
   UpdateUserProfileInput,
@@ -47,7 +50,7 @@ export async function registerAction(
     throw error;
   }
 
-  return { success: true, redirectTo: "/dashboard" };
+  return { success: true, redirectTo: "/welcome" };
 }
 
 export async function sendPhoneOtpAction(
@@ -152,6 +155,57 @@ export async function loginAction(
 
   const role = await getUserRole(userId);
   return { success: true, redirectTo: role === "admin" ? "/admin" : "/dashboard" };
+}
+
+export async function requestPasswordResetAction(
+  _prevState: PasswordResetActionState,
+  formData: FormData,
+): Promise<PasswordResetActionState> {
+  const parsed = RequestPasswordResetSchema.safeParse({
+    email: formData.get("email"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Email inválido" };
+  }
+
+  try {
+    await auth.api.requestPasswordReset({
+      body: {
+        email: parsed.data.email,
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/reset-password`,
+      },
+    });
+  } catch {
+    // Nunca revelar si el email existe o no
+  }
+
+  return { success: true };
+}
+
+export async function resetPasswordAction(data: {
+  token: string;
+  newPassword: string;
+}): Promise<{ success: true } | { error: string }> {
+  const parsed = ResetPasswordSchema.safeParse(data);
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  try {
+    await auth.api.resetPassword({
+      body: {
+        token: parsed.data.token,
+        newPassword: parsed.data.newPassword,
+      },
+    });
+  } catch (error) {
+    console.error("[resetPassword] error:", error);
+    return { error: "El link expiró o ya fue usado. Solicitá uno nuevo." };
+  }
+
+  return { success: true };
 }
 
 const MAX_AVATAR_SIZE_BYTES = 2 * 1024 * 1024;

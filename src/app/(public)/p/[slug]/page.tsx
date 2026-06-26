@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -198,7 +199,7 @@ export default async function ProfessionalPublicProfilePage({
         <div className="flex flex-col lg:flex-row lg:items-start gap-6">
 
           {/* ── COLUMNA IZQUIERDA — sticky en desktop ── */}
-          <div className="flex w-full flex-col gap-6 lg:w-[380px] lg:flex-shrink-0 lg:sticky lg:top-6 lg:max-h-[calc(100vh-48px)] lg:overflow-y-auto">
+          <div className="w-full lg:w-[400px] lg:flex-shrink-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-80px)] lg:overflow-y-auto lg:pb-4">
 
             {/* Card principal: hero + secciones compactas desktop */}
             <div className="overflow-hidden rounded-2xl bg-white">
@@ -243,11 +244,33 @@ export default async function ProfessionalPublicProfilePage({
                 )}
 
                 <div className="mt-5">
-                  <PhoneReveal
-                    professionalId={professional.id}
-                    source="profile"
-                    preloadedPhone={contactPhone}
-                  />
+                  {isOwner ? (
+                    <Link
+                      href="/professional/edit"
+                      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-full border-2 border-sb-blue text-[15px] font-semibold text-sb-blue transition-colors hover:bg-sb-card-blue"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Editar perfil
+                    </Link>
+                  ) : (
+                    <PhoneReveal
+                      professionalId={professional.id}
+                      source="profile"
+                      preloadedPhone={contactPhone}
+                    />
+                  )}
                 </div>
               </div>
 

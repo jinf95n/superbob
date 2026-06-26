@@ -39,13 +39,46 @@ export async function createReportAction(
       reason,
       description,
     },
+    include: {
+      reporter: { select: { fullName: true } },
+      reportedUser: { select: { fullName: true } },
+    },
   });
 
-  // Sin servicio de email configurado en Fase 1: se deja registro en logs
-  // para que el admin lo vea hasta que se integre un proveedor real.
-  console.log(
-    `[reports] Nuevo reporte ${report.id} de ${session.user.id} contra ${reportedUserId}: ${reason}`,
-  );
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const { Resend } = await import("resend");
+      const resendClient = new Resend(process.env.RESEND_API_KEY);
+      await resendClient.emails.send({
+        from: "SUPERBOB <noreply@superbob.com.ar>",
+        to: process.env.ADMIN_EMAIL ?? "admin@superbob.com.ar",
+        subject: `[REPORTE] Nuevo reporte pendiente — SUPERBOB`,
+        html: `
+          <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+            <h2 style="color:#1A6FE0;margin:0 0 16px;">Nuevo reporte recibido</h2>
+            <p style="color:#1A1A18;margin:0 0 8px;">
+              <strong>Reportado:</strong> ${report.reportedUser.fullName}
+            </p>
+            <p style="color:#1A1A18;margin:0 0 8px;">
+              <strong>Motivo:</strong> ${report.reason}
+            </p>
+            <p style="color:#1A1A18;margin:0 0 8px;">
+              <strong>Descripción:</strong> ${report.description ?? "Sin descripción"}
+            </p>
+            <p style="color:#1A1A18;margin:0 0 24px;">
+              <strong>Reportado por:</strong> ${report.reporter.fullName}
+            </p>
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/admin/reports"
+              style="background:#1A6FE0;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;">
+              Ver en el panel →
+            </a>
+          </div>
+        `,
+      });
+    }
+  } catch (emailError) {
+    console.error("[ADMIN EMAIL] Error enviando notificación:", emailError);
+  }
 
   return { success: true };
 }

@@ -16,7 +16,7 @@ export function ProfessionalSearchCard({
     isVerified: professional.isVerified,
     primaryTradeName: professional.primaryTrade?.name ?? null,
     tradeSlug: professional.primaryTrade?.slug ?? null,
-    department: professional.departments[0] ?? null,
+    department: professional.primaryDepartmentName,
     averageRating: professional.averageRating,
     reviewCount: professional.reviewCount,
     completedJobsCount: professional.completedJobsCount,
