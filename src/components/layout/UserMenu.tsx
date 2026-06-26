@@ -54,6 +54,18 @@ export function UserMenu({
   }
 
   return (
+    <>
+    {isLoggingOut && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="h-8 w-8 animate-spin text-sb-blue" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <p className="text-[14px] text-sb-muted">Cerrando sesión...</p>
+        </div>
+      </div>
+    )}
     <div ref={containerRef} className="relative">
       <button
         type="button"
@@ -73,7 +85,7 @@ export function UserMenu({
         )}
       </button>
 
-      {isOpen && (
+    {isOpen && (
         <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-sb-border bg-white p-2 shadow-[0_4px_20px_rgba(0,0,0,0.12)]">
           <div className="px-3 py-2">
             <p className="font-display text-[15px] font-semibold text-sb-text">
@@ -142,5 +154,6 @@ export function UserMenu({
         </div>
       )}
     </div>
+    </>
   );
 }

@@ -17,7 +17,7 @@ import { ReportModal } from "@/components/shared/ReportModal";
 import { BadgeRow } from "@/components/shared/BadgePill";
 import { ProfileCompletionCard } from "@/components/shared/ProfileCompletionCard";
 import { ReviewsList } from "@/components/shared/ReviewsList";
-import { PortfolioGrid } from "@/components/shared/PortfolioGrid";
+import { PhotoGallery } from "@/components/shared/PhotoGallery";
 import { ShareProfileBlock } from "@/components/shared/ShareProfileBlock";
 import { DesktopShareButtons } from "@/components/shared/DesktopShareButtons";
 
@@ -469,7 +469,7 @@ export default async function ProfessionalPublicProfilePage({
                   Trabajos realizados
                 </h2>
                 <div className="mt-3">
-                  <PortfolioGrid
+                  <PhotoGallery
                     photos={professional.photos}
                     professionalName={professional.fullName}
                   />

@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-}
+import Image from "next/image";
 
 type ProfileAvatarWithModalProps = {
   avatarUrl: string | null;
@@ -22,8 +16,14 @@ export function ProfileAvatarWithModal({
 
   if (!avatarUrl) {
     return (
-      <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-sb-card-blue font-display text-2xl font-bold text-sb-blue">
-        {getInitials(fullName)}
+      <div className="flex h-[72px] w-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-sb-blue">
+        <Image
+          src="/images/isotipo.png"
+          alt="SUPERBOB"
+          width={44}
+          height={44}
+          className="object-contain brightness-0 invert opacity-60"
+        />
       </div>
     );
   }
