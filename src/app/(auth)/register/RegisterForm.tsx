@@ -66,19 +66,19 @@ export function RegisterForm() {
           </div>
         </div>
       )}
-      <main className="w-full max-w-[400px] px-6 py-8 lg:px-8 lg:py-12">
+      <main className="w-full max-w-[400px] px-6 py-6 lg:px-8">
         <p className="font-display text-[24px] font-extrabold text-sb-blue lg:hidden">
           SUPERBOB
         </p>
 
-        <h1 className="font-display mt-6 text-[26px] font-bold text-sb-text lg:mt-0">
+        <h1 className="font-display mt-4 text-[24px] font-bold text-sb-text lg:mt-0">
           Creá tu cuenta
         </h1>
-        <p className="mt-1.5 text-[14px] text-sb-muted">
+        <p className="mt-1 text-[14px] text-sb-muted">
           Gratis. Sin tarjeta de crédito.
         </p>
 
-        <form action={formAction} className="mt-8 flex flex-col gap-4">
+        <form action={formAction} className="mt-5 flex flex-col gap-3">
           <div>
             <label
               htmlFor="fullName"
@@ -150,9 +150,9 @@ export function RegisterForm() {
             </div>
 
             {password.length > 0 && (
-              <div className="mt-2 flex flex-col gap-1">
+              <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5">
                 {PASSWORD_CHECKS.map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-2">
+                  <div key={key} className="flex items-center gap-1.5">
                     <svg
                       width="14"
                       height="14"
@@ -188,13 +188,13 @@ export function RegisterForm() {
           <SubmitButton
             disabled={!isPasswordValid}
             pendingLabel="Creando cuenta..."
-            className="font-display mt-5 w-full rounded-[10px] bg-sb-blue py-[13px] text-[15px] font-semibold text-white transition-colors duration-150 ease-in-out hover:bg-sb-blue/90"
+            className="font-display mt-2 w-full rounded-[10px] bg-sb-blue py-3 text-[15px] font-semibold text-white transition-colors duration-150 ease-in-out hover:bg-sb-blue/90"
           >
             Crear cuenta
           </SubmitButton>
         </form>
 
-        <div className="my-5 flex items-center gap-3">
+        <div className="my-3 flex items-center gap-3">
           <div className="h-px flex-1 bg-sb-border" />
           <span className="text-sm text-sb-muted">o</span>
           <div className="h-px flex-1 bg-sb-border" />
@@ -202,7 +202,7 @@ export function RegisterForm() {
 
         <GoogleSignInButton />
 
-        <p className="mt-4 text-[14px] text-sb-muted">
+        <p className="mt-3 text-[14px] text-sb-muted">
           ¿Ya tenés cuenta?{" "}
           <Link href="/login" className="text-sb-blue hover:underline">
             Ingresá

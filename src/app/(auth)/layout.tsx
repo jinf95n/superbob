@@ -14,8 +14,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex min-h-screen bg-white">
-      <div className="hidden w-1/2 flex-col items-center justify-center bg-sb-blue px-12 lg:flex">
+    <div className="flex h-screen overflow-hidden bg-white">
+      <div className="hidden w-1/2 flex-col items-center justify-center overflow-hidden bg-sb-blue px-12 lg:flex">
         <Link href="/" className="mb-2 flex items-center gap-2">
           <Image
             src="/images/isotipo.png"
@@ -33,7 +33,7 @@ export default function AuthLayout({
         </p>
         <HeroImageSlot />
 
-        <div className="mt-10 flex w-full max-w-xs flex-col gap-3">
+        <div className="mt-6 flex w-full max-w-xs flex-col gap-3">
           {TRUST_POINTS.map((item) => (
             <div
               key={item.text}
@@ -48,7 +48,7 @@ export default function AuthLayout({
         </div>
       </div>
 
-      <div className="flex w-full items-center justify-center bg-white lg:w-1/2">
+      <div className="flex w-full items-center justify-center overflow-y-auto bg-white lg:w-1/2">
         {children}
       </div>
     </div>

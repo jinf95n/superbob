@@ -7,7 +7,7 @@ export function HeroImageSlot() {
   const [imageFailed, setImageFailed] = useState(false);
 
   return (
-    <div className="relative mx-auto mt-12 h-72 w-72">
+    <div className="relative mx-auto mt-6 h-52 w-52">
       {!imageFailed && (
         <Image
           src="/images/hero-professional.png"

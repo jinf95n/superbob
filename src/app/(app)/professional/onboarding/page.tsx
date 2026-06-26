@@ -28,8 +28,8 @@ export default async function ProfessionalOnboardingPage() {
 
   return (
     <main className="mx-auto max-w-lg p-4 sm:p-6">
-      <h1 className="text-2xl font-bold">Activar perfil profesional</h1>
-      <p className="mt-1 text-sm text-neutral-600">
+      <h1 className="font-display text-2xl font-bold text-sb-text">Activar perfil profesional</h1>
+      <p className="mt-1 text-sm text-sb-muted">
         Completá estos 3 pasos para que los clientes te encuentren.
       </p>
 
