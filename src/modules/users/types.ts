@@ -4,7 +4,12 @@ import { Role } from "@prisma/client";
 export const RegisterSchema = z.object({
   fullName: z.string().min(2, "Ingresá tu nombre completo"),
   email: z.email("Email inválido"),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+  password: z
+    .string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número")
+    .regex(/[^A-Za-z0-9]/, "Debe contener al menos un símbolo (!@#$...)"),
 });
 
 export const LoginSchema = z.object({
@@ -47,12 +52,38 @@ export type UpdateUserProfileActionState = {
   success?: boolean;
 };
 
+export const RequestPasswordResetSchema = z.object({
+  email: z.email("Email inválido"),
+});
+
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(1, "Token requerido"),
+  newPassword: z
+    .string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+    .regex(/[0-9]/, "Debe contener al menos un número")
+    .regex(/[^A-Za-z0-9]/, "Debe contener al menos un símbolo (!@#$...)"),
+});
+
+export type PasswordResetActionState = {
+  error?: string;
+  success?: boolean;
+};
+
 export type UserAccountProfile = {
   fullName: string;
   email: string;
   phone: string | null;
   phoneVerifiedAt: Date | null;
   avatarUrl: string | null;
+  createdAt: Date;
+};
+
+export type UserProfileStats = {
+  contactsCount: number;
+  reviewsGiven: number;
+  reviewsPending: number;
 };
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);

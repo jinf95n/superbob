@@ -5,6 +5,7 @@ import {
   AdminUserListParams,
   AdminUserListResult,
   UserAccountProfile,
+  UserProfileStats,
 } from "./types";
 
 export async function getUserAccountProfile(
@@ -18,8 +19,27 @@ export async function getUserAccountProfile(
       phone: true,
       phoneVerifiedAt: true,
       avatarUrl: true,
+      createdAt: true,
     },
   });
+}
+
+export async function getUserProfileStats(
+  userId: string,
+): Promise<UserProfileStats> {
+  const [contactsCount, reviewsGiven, reviewsPending] = await Promise.all([
+    prisma.contactEvent.count({ where: { clientId: userId } }),
+    prisma.review.count({
+      where: { reviewerId: userId, publishedAt: { not: null } },
+    }),
+    prisma.workRecord.count({
+      where: {
+        clientId: userId,
+        reviews: { none: { reviewerId: userId } },
+      },
+    }),
+  ]);
+  return { contactsCount, reviewsGiven, reviewsPending };
 }
 
 export type UserAccountInfo = {

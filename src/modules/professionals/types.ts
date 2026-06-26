@@ -22,7 +22,7 @@ export type FeaturedProfessional = {
   avatarUrl: string | null;
   isVerified: boolean;
   primaryTrade: string;
-  department: string;
+  department: string | null;
   averageRating: number;
   reviewCount: number;
 };
@@ -56,6 +56,7 @@ export type SearchableProfessional = {
   primaryTrade: SearchablePrimaryTrade | null;
   allTrades: string[];
   departments: string[];
+  primaryDepartmentName: string | null;
   averageRating: number;
   reviewCount: number;
   completedJobsCount: number;
@@ -98,6 +99,7 @@ export const CreateProfessionalProfileSchema = z
     departmentIds: z
       .array(z.string().uuid())
       .min(1, "Elegí al menos una zona de cobertura"),
+    primaryDepartmentId: z.string().uuid().optional(),
   })
   .refine(
     (data) =>
@@ -234,6 +236,7 @@ export type ProfessionalProfileForEdit = {
   primaryYearsExperience: number | null;
   secondaryTrades: ProfessionalSecondaryTradeForEdit[];
   departmentIds: string[];
+  primaryDepartmentId: string | null;
 };
 
 const statusFilterSchema = z.preprocess(

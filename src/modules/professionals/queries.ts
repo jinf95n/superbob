@@ -51,6 +51,7 @@ export async function getAllProfessionalsForSearch(): Promise<
       isVerified: true,
       isActive: true,
       createdAt: true,
+      primaryDepartment: { select: { name: true } },
       user: { select: { fullName: true, avatarUrl: true } },
       professionalTrades: {
         where: { trade: { isActive: true } },
@@ -138,6 +139,10 @@ export async function getAllProfessionalsForSearch(): Promise<
       departments: professional.coverageAreas.map(
         (coverage) => coverage.department.name,
       ),
+      primaryDepartmentName:
+        professional.primaryDepartment?.name ??
+        professional.coverageAreas[0]?.department.name ??
+        null,
       averageRating: scoreEntry?.score ?? 0,
       reviewCount,
       completedJobsCount: completedCountByProfessional.get(professional.id) ?? 0,
@@ -180,6 +185,7 @@ async function getRankedProfessionalsWithPublishedReviews(
         select: { trade: { select: { name: true } } },
         take: 1,
       },
+      primaryDepartment: { select: { name: true } },
       coverageAreas: {
         select: { department: { select: { name: true } } },
         take: 1,
@@ -192,10 +198,13 @@ async function getRankedProfessionalsWithPublishedReviews(
   const featured: FeaturedProfessional[] = [];
   for (const candidate of candidates) {
     const primaryTrade = candidate.professionalTrades[0]?.trade.name ?? null;
-    const department = candidate.coverageAreas[0]?.department.name ?? null;
+    const department =
+      candidate.primaryDepartment?.name ??
+      candidate.coverageAreas[0]?.department.name ??
+      null;
     const scoreEntry = scores.get(candidate.id) ?? null;
 
-    if (!primaryTrade || !department || !scoreEntry) {
+    if (!primaryTrade || !scoreEntry) {
       continue;
     }
     if (scoreEntry.reviewCount < minReviewCount) {
@@ -346,6 +355,7 @@ export async function getProfessionalProfileBySlug(
       isActive: true,
       qrCodeUrl: true,
       createdAt: true,
+      primaryDepartment: { select: { name: true } },
       user: { select: { fullName: true, avatarUrl: true } },
       professionalTrades: {
         where: { trade: { isActive: true } },
@@ -504,7 +514,10 @@ export async function getProfessionalProfileBySlug(
           slug: primaryTradeEntry.trade.slug,
         }
       : null,
-    primaryDepartmentName: professional.coverageAreas[0]?.department.name ?? null,
+    primaryDepartmentName:
+      professional.primaryDepartment?.name ??
+      professional.coverageAreas[0]?.department.name ??
+      null,
     trades,
     departments: professional.coverageAreas.map(
       (coverage) => coverage.department,
@@ -847,6 +860,7 @@ export async function getProfessionalProfileForEdit(
       slug: true,
       bio: true,
       contactPhone: true,
+      primaryDepartmentId: true,
       professionalTrades: {
         select: {
           isPrimary: true,
@@ -872,6 +886,7 @@ export async function getProfessionalProfileForEdit(
     slug: professional.slug,
     bio: professional.bio,
     contactPhone: professional.contactPhone,
+    primaryDepartmentId: professional.primaryDepartmentId ?? null,
     primaryTradeId: primaryTrade?.tradeId ?? null,
     primaryYearsExperience: primaryTrade?.yearsExperience ?? null,
     secondaryTrades: secondaryTrades.map((pt) => ({

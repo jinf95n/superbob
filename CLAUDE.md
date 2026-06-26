@@ -422,6 +422,12 @@ work_review tiene peso 100% y contact_review tiene peso 30%. El score visible de
 
 15. Migraciones en Supabase: nunca usar --shadow-database-url apuntando a la base real. Para generar SQL de migraciones usar prisma migrate diff --from-migrations --to-schema-datamodel y aplicar con psql o el SQL editor de Supabase directamente.
 
+16. **IDs de Better Auth son nanoid, no UUID estándar.** Todo campo de ID que provenga de la sesión de Better Auth (ej. `session.user.id`) debe validarse con `z.string().min(1)`, nunca con `z.string().uuid()`. Los IDs generados por Prisma en tablas propias sí son UUID y pueden usar `z.uuid()`.
+
+17. **Colores dinámicos por oficio: nunca usar clases Tailwind dinámicas.** Las clases generadas en runtime (ej. `` `bg-${slug}-500` ``) no son incluidas por Tailwind en el build. Para colorear por oficio, usar siempre `style={{ backgroundColor: getTradeColor(slug) }}` con la función del archivo `src/lib/tradeColors.ts`.
+
+18. **En Zod, no usar `z.preprocess(emptyToUndefined, ...)`.** Este patrón oculta el error real del campo detrás del error del wrapper, dificultando el debugging. Usar `z.string().min(1).optional()` en su lugar.
+
 ---
 
 ## Lo que NO existe en Fase 1
@@ -449,3 +455,18 @@ No implementar, no mencionar, no crear tablas para:
 | `docs/Roadmap.md` | Las 6 fases de evolución del producto |
 | `docs/Brand.md` | Identidad de marca, colores, tipografía, tono de voz |
 
+## Gestión del conocimiento
+
+Al finalizar cualquier sesión de desarrollo, antes de cerrar,
+evaluar si ocurrió alguno de estos eventos:
+
+- Se resolvió un bug que tardó más de un intento en encontrarse
+- Se tomó una decisión de arquitectura que no estaba documentada
+- Se descubrió un comportamiento inesperado de una librería
+- Se estableció una convención nueva de código o diseño
+
+Si ocurrió alguno, proponer al usuario agregar una nota en la
+sección correspondiente del CLAUDE.md con el aprendizaje concreto.
+No agregar sin confirmación del usuario.
+
+Si no ocurrió nada relevante, no mencionar esto.
