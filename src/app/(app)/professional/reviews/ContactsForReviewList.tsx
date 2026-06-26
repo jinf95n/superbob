@@ -77,21 +77,26 @@ export function ContactsForReviewList({
           let cta: React.ReactNode;
 
           if (!workRecord && !isConfirmed) {
-            cta = (
-              <button
-                type="button"
-                onClick={() =>
-                  setConfirmModal({
-                    contactEventId: contact.contactEventId,
-                    clientId: contact.clientId,
-                    clientName: contact.clientName,
-                  })
-                }
-                className="shrink-0 rounded-full border border-sb-blue px-4 py-1.5 text-[13px] font-medium text-sb-blue"
-              >
-                Registrar
-              </button>
-            );
+            cta =
+              trades.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmModal({
+                      contactEventId: contact.contactEventId,
+                      clientId: contact.clientId,
+                      clientName: contact.clientName,
+                    })
+                  }
+                  className="shrink-0 rounded-full border border-sb-blue px-4 py-1.5 text-[13px] font-medium text-sb-blue"
+                >
+                  Registrar
+                </button>
+              ) : (
+                <span className="shrink-0 text-[13px] text-sb-muted">
+                  Agregá un oficio primero
+                </span>
+              );
           } else if ((isConfirmed || workRecord) && !isRated) {
             cta = (
               <button

@@ -160,7 +160,7 @@ export default async function ProfessionalPublicProfilePage({
             )}
             {hasContact && !pendingReview && (
               <a
-                href={`/reviews/new?professional=${professional.id}`}
+                href="/notifications"
                 className="flex items-center justify-between rounded-2xl bg-sb-card-blue p-4"
               >
                 <div>
@@ -168,11 +168,11 @@ export default async function ProfessionalPublicProfilePage({
                     ¿Trabajaste con {professional.fullName.split(" ")[0]}?
                   </p>
                   <p className="mt-0.5 text-[13px] text-sb-muted">
-                    Dejá tu reseña y ayudá a otros a elegir bien.
+                    Revisá tus notificaciones para dejar una reseña cuando esté disponible.
                   </p>
                 </div>
                 <span className="ml-4 shrink-0 whitespace-nowrap rounded-xl bg-sb-blue px-4 py-2 text-[14px] font-medium text-white">
-                  Dejar reseña
+                  Ver notificaciones
                 </span>
               </a>
             )}
