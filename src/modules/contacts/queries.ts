@@ -21,7 +21,8 @@ export async function getProfessionalContactsForReview(
   const contactEvents = await prisma.contactEvent.findMany({
     where: { professionalId },
     orderBy: { createdAt: "desc" },
-    take: 30,
+    distinct: ["clientId"],
+    take: 20,
     select: {
       id: true,
       clientId: true,
