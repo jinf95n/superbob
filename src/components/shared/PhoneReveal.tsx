@@ -79,16 +79,21 @@ export function PhoneReveal({
 
   const baseClasses = variant === "inline" ? INLINE_CLASSES : BAR_CLASSES;
 
+  const inlineWrapper =
+    variant === "inline" ? "min-h-[92px]" : "";
+
   if (isSessionPending) {
     return (
-      <div
-        className={`${baseClasses} ${
-          variant === "inline"
-            ? "border-[1.5px] border-sb-border text-sb-muted"
-            : "bg-sb-card-blue text-sb-muted"
-        }`}
-      >
-        Cargando...
+      <div className={inlineWrapper}>
+        <div
+          className={`${baseClasses} ${
+            variant === "inline"
+              ? "border-[1.5px] border-sb-border text-sb-muted"
+              : "bg-sb-card-blue text-sb-muted"
+          }`}
+        >
+          Cargando...
+        </div>
       </div>
     );
   }
@@ -96,7 +101,7 @@ export function PhoneReveal({
   if (phone) {
     const waUrl = `https://wa.me/${formatArgentinePhoneForWhatsApp(phone)}?text=${WA_MESSAGE}`;
     return (
-      <div className="flex flex-col gap-3">
+      <div className={`flex flex-col gap-3 ${inlineWrapper}`}>
         <a
           href={`tel:${phone}`}
           className={`${baseClasses} animate-phone-reveal gap-2 bg-sb-blue text-white`}
@@ -146,7 +151,7 @@ export function PhoneReveal({
       : "bg-sb-blue text-white opacity-85";
 
   return (
-    <>
+    <div className={inlineWrapper}>
       <button
         type="button"
         onClick={handleClick}
@@ -169,6 +174,6 @@ export function PhoneReveal({
           {error}
         </p>
       )}
-    </>
+    </div>
   );
 }

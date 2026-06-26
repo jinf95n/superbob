@@ -9,8 +9,8 @@ export const REPORT_REASONS = [
 ] as const;
 
 export const CreateReportSchema = z.object({
-  reportedUserId: z.string().uuid(),
-  reportedProfessionalId: z.string().uuid().optional(),
+  reportedUserId: z.string().min(1, "Usuario inválido"),
+  reportedProfessionalId: z.string().min(1).optional(),
   reason: z
     .string()
     .refine(

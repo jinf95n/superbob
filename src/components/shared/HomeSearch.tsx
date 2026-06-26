@@ -66,6 +66,23 @@ function PinIcon() {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 export function HomeSearch({ trades, departments }: HomeSearchProps) {
   const router = useRouter();
 
@@ -73,10 +90,7 @@ export function HomeSearch({ trades, departments }: HomeSearchProps) {
   const [tradeSlug, setTradeSlug] = useState<string | null>(null);
   const [showTradeSuggestions, setShowTradeSuggestions] = useState(false);
 
-  const [departmentQuery, setDepartmentQuery] = useState("");
   const [departmentSlug, setDepartmentSlug] = useState<string | null>(null);
-  const [showDepartmentSuggestions, setShowDepartmentSuggestions] =
-    useState(false);
 
   const tradeSuggestions = useMemo(() => {
     if (tradeQuery.trim().length < MIN_QUERY_LENGTH) return [];
@@ -85,14 +99,6 @@ export function HomeSearch({ trades, departments }: HomeSearchProps) {
       .filter((trade) => normalize(trade.name).includes(normalized))
       .slice(0, MAX_SUGGESTIONS);
   }, [tradeQuery, trades]);
-
-  const departmentSuggestions = useMemo(() => {
-    if (departmentQuery.trim().length < MIN_QUERY_LENGTH) return [];
-    const normalized = normalize(departmentQuery);
-    return departments
-      .filter((department) => normalize(department.name).includes(normalized))
-      .slice(0, MAX_SUGGESTIONS);
-  }, [departmentQuery, departments]);
 
   function handleTradeInputChange(value: string) {
     setTradeQuery(value);
@@ -110,18 +116,6 @@ export function HomeSearch({ trades, departments }: HomeSearchProps) {
     setTradeQuery(label);
     setTradeSlug(null);
     setShowTradeSuggestions(true);
-  }
-
-  function handleDepartmentInputChange(value: string) {
-    setDepartmentQuery(value);
-    setDepartmentSlug(null);
-    setShowDepartmentSuggestions(true);
-  }
-
-  function handleSelectDepartment(department: DepartmentOption) {
-    setDepartmentQuery(department.name);
-    setDepartmentSlug(department.slug);
-    setShowDepartmentSuggestions(false);
   }
 
   function handleSubmit(event: FormEvent) {
@@ -187,41 +181,31 @@ export function HomeSearch({ trades, departments }: HomeSearchProps) {
           </label>
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sb-muted"
+            className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 z-10 text-sb-muted"
           >
             <PinIcon />
           </span>
-          <input
+          <select
             id="home-search-department"
-            type="text"
-            value={departmentQuery}
-            onChange={(event) =>
-              handleDepartmentInputChange(event.target.value)
-            }
-            onFocus={() => setShowDepartmentSuggestions(true)}
-            onBlur={() =>
-              setTimeout(() => setShowDepartmentSuggestions(false), 100)
-            }
-            placeholder="Departamento o ciudad"
-            autoComplete="off"
-            className="w-full rounded-xl border-[1.5px] border-sb-border py-3.5 pl-11 pr-4 text-[15px] text-sb-text outline-none focus:border-sb-blue"
-          />
-
-          {showDepartmentSuggestions && departmentSuggestions.length > 0 && (
-            <ul className="absolute z-30 mt-1 w-full rounded-xl border border-sb-border bg-white">
-              {departmentSuggestions.map((department) => (
-                <li key={department.slug}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectDepartment(department)}
-                    className="block w-full px-4 py-2.5 text-left text-[15px] text-sb-text hover:bg-sb-bg"
-                  >
-                    {department.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+            value={departmentSlug ?? ""}
+            onChange={(event) => setDepartmentSlug(event.target.value || null)}
+            className={`w-full appearance-none rounded-xl border-[1.5px] border-sb-border bg-white py-3.5 pl-11 pr-10 text-[15px] outline-none focus:border-sb-blue ${
+              !departmentSlug ? "text-sb-muted" : "text-sb-text"
+            }`}
+          >
+            <option value="">Departamento (opcional)</option>
+            {departments.map((dept) => (
+              <option key={dept.slug} value={dept.slug}>
+                {dept.name}
+              </option>
+            ))}
+          </select>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sb-muted"
+          >
+            <ChevronDownIcon />
+          </span>
         </div>
 
         <button
