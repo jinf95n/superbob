@@ -122,3 +122,12 @@ export type ClientRatingForProfessional = {
   comment: string | null;
   createdAt: Date;
 };
+
+export type WorkRecordForNewReviewPage = {
+  id: string;
+  type: WorkRecordType;
+  professionalName: string;
+  professionalSlug: string;
+  tradeName: string;
+  alreadyReviewed: boolean;
+};

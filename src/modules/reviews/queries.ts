@@ -5,6 +5,7 @@ import {
   PendingRatingForProfessional,
   PendingReviewForClient,
   PublishedReviewForProfessional,
+  WorkRecordForNewReviewPage,
   WorkRecordForReviewPage,
 } from "./types";
 
@@ -333,4 +334,37 @@ export async function getClientRatingForProfessional(
     where: { clientId, ratedByProfessionalId: professionalId },
     select: { rating: true, comment: true, createdAt: true },
   });
+}
+
+export async function getWorkRecordForNewReviewPage(
+  clientId: string,
+  professionalId: string,
+): Promise<WorkRecordForNewReviewPage | null> {
+  const workRecord = await prisma.workRecord.findFirst({
+    where: { clientId, professionalId },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      type: true,
+      professional: {
+        select: {
+          slug: true,
+          user: { select: { fullName: true } },
+        },
+      },
+      trade: { select: { name: true } },
+      reviews: { where: { reviewerId: clientId }, select: { id: true } },
+    },
+  });
+
+  if (!workRecord) return null;
+
+  return {
+    id: workRecord.id,
+    type: workRecord.type,
+    professionalName: workRecord.professional.user.fullName,
+    professionalSlug: workRecord.professional.slug,
+    tradeName: workRecord.trade.name,
+    alreadyReviewed: workRecord.reviews.length > 0,
+  };
 }
