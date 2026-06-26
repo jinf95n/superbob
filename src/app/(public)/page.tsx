@@ -131,7 +131,7 @@ export default async function HomePage() {
             {POPULAR_CATEGORIES.map((category) => (
               <Link
                 key={category.slug}
-                href={`/search?q=${category.slug}`}
+                href={`/search?trade=${category.slug}`}
                 className="flex flex-col items-center rounded-2xl border-[1.5px] border-sb-border bg-sb-bg px-4 py-5 text-center transition-colors duration-150 ease-in-out hover:border-sb-blue hover:bg-white"
               >
                 <span
@@ -167,7 +167,17 @@ export default async function HomePage() {
               {featuredPros.map((professional) => (
                 <ProfessionalCard
                   key={professional.id}
-                  professional={professional}
+                  data={{
+                    id: professional.id,
+                    slug: professional.slug,
+                    fullName: professional.fullName,
+                    avatarUrl: professional.avatarUrl,
+                    isVerified: professional.isVerified,
+                    primaryTradeName: professional.primaryTrade,
+                    department: professional.department,
+                    averageRating: professional.averageRating,
+                    reviewCount: professional.reviewCount,
+                  }}
                   className="w-[280px] shrink-0 snap-start sm:w-full sm:shrink sm:snap-align-none"
                 />
               ))}

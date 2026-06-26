@@ -349,7 +349,7 @@ export async function confirmWorkFromContactAction(
       type === "completed"
         ? `${professional?.user.fullName ?? "Un profesional"} dice que completó un trabajo con vos. ¿Querés dejar una reseña?`
         : `${professional?.user.fullName ?? "Un profesional"} dice que tuvo contacto con vos. ¿Querés dejar una reseña?`,
-    actionUrl: `/reviews/${workRecord.id}`,
+    actionUrl: `/reviews/new?professional=${professionalId}`,
   });
 
   return { workRecordId: workRecord.id };

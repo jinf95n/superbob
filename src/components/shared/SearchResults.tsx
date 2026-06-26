@@ -60,11 +60,47 @@ const SORT_OPTIONS: { label: string; value: SortOption }[] = [
 type SearchResultsProps = {
   professionals: SearchableProfessional[];
   trades: ActiveTradeWithCategory[];
+  initialTradeSlug?: string;
+  initialDepartmentName?: string;
 };
 
-export function SearchResults({ professionals, trades }: SearchResultsProps) {
+function normSlug(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[-\s]+/g, "");
+}
+
+export function SearchResults({
+  professionals,
+  trades,
+  initialTradeSlug,
+  initialDepartmentName,
+}: SearchResultsProps) {
   const [query, setQuery] = useState("");
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<Filters>(() => {
+    if (!initialTradeSlug && !initialDepartmentName) return DEFAULT_FILTERS;
+
+    let tradeSlugs: string[] = [];
+    if (initialTradeSlug) {
+      const isIndividual = trades.some((t) => t.slug === initialTradeSlug);
+      if (isIndividual) {
+        tradeSlugs = [initialTradeSlug];
+      } else {
+        const n = normSlug(initialTradeSlug);
+        tradeSlugs = trades
+          .filter((t) => normSlug(t.categoryName) === n)
+          .map((t) => t.slug);
+      }
+    }
+
+    return {
+      ...DEFAULT_FILTERS,
+      tradeSlugs,
+      departments: initialDepartmentName ? [initialDepartmentName] : [],
+    };
+  });
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const tradeGroups = useMemo<MultiSelectGroup[]>(() => {
