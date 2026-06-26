@@ -11,7 +11,13 @@ export const REPORT_REASONS = [
 export const CreateReportSchema = z.object({
   reportedUserId: z.string().uuid(),
   reportedProfessionalId: z.string().uuid().optional(),
-  reason: z.enum(REPORT_REASONS),
+  reason: z
+    .string()
+    .refine(
+      (v): v is (typeof REPORT_REASONS)[number] =>
+        (REPORT_REASONS as readonly string[]).includes(v),
+      { message: "Razón inválida" },
+    ),
   description: z.string().trim().max(1000, "Máximo 1000 caracteres").optional(),
 });
 
