@@ -53,7 +53,6 @@ export function ProfileForm({
   const [isEditingName, setIsEditingName] = useState(false);
   const [fullName, setFullName] = useState(accountProfile.fullName);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [nameSaved, setNameSaved] = useState(false);
   const [isSavingName, startSaveName] = useTransition();
 
   const isPhoneVerified = Boolean(accountProfile.phoneVerifiedAt);
@@ -85,14 +84,12 @@ export function ProfileForm({
 
   function handleSaveName() {
     setNameError(null);
-    setNameSaved(false);
     startSaveName(async () => {
       const result = await updateUserProfileAction({ fullName });
       if (result.error) {
         setNameError(result.error);
         return;
       }
-      setNameSaved(true);
       setIsEditingName(false);
     });
   }
@@ -100,7 +97,6 @@ export function ProfileForm({
   function handleCancelEditName() {
     setFullName(accountProfile.fullName);
     setNameError(null);
-    setNameSaved(false);
     setIsEditingName(false);
   }
 
@@ -199,7 +195,6 @@ export function ProfileForm({
               value={fullName}
               onChange={(e) => {
                 setFullName(e.target.value);
-                setNameSaved(false);
               }}
               autoFocus
               className="w-full rounded-[10px] border-[1.5px] border-sb-border px-3.5 py-3 text-[15px] text-sb-text outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10"

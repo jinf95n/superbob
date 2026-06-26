@@ -50,7 +50,6 @@ export async function createProfessionalProfileAction(
     primaryYearsExperience,
     secondaryTrades,
     departmentIds,
-    primaryDepartmentId,
   } = parsed.data;
 
   const uniqueDepartmentIds = [...new Set(departmentIds)];
@@ -66,7 +65,6 @@ export async function createProfessionalProfileAction(
             slug,
             bio,
             contactPhone,
-            primaryDepartmentId: primaryDepartmentId ?? null,
           },
         });
 
@@ -177,7 +175,6 @@ export async function updateProfessionalProfileAction(
     primaryYearsExperience,
     secondaryTrades,
     departmentIds,
-    primaryDepartmentId,
   } = parsed.data;
 
   const uniqueDepartmentIds = [...new Set(departmentIds)];
@@ -185,7 +182,7 @@ export async function updateProfessionalProfileAction(
   await prisma.$transaction(async (tx) => {
     await tx.professionalProfile.update({
       where: { id: existingProfile.id },
-      data: { bio, contactPhone, primaryDepartmentId: primaryDepartmentId ?? null },
+      data: { bio, contactPhone },
     });
 
     // Se borran y recrean las relaciones para evitar pisar el índice
