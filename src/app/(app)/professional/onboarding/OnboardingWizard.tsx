@@ -17,7 +17,6 @@ type SecondaryTradeRow = {
 };
 
 type OnboardingWizardProps = {
-  accountPhone: string | null;
   initialAvatarUrl: string | null;
   tradeCategories: TradeCategoryWithTrades[];
   provinces: ProvinceWithDepartments[];
@@ -26,7 +25,6 @@ type OnboardingWizardProps = {
 const MAX_SECONDARY_TRADES = 4;
 
 export function OnboardingWizard({
-  accountPhone,
   initialAvatarUrl,
   tradeCategories,
   provinces,

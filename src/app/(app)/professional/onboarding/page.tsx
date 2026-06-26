@@ -34,7 +34,6 @@ export default async function ProfessionalOnboardingPage() {
       </p>
 
       <OnboardingWizard
-        accountPhone={accountInfo?.phone ?? null}
         initialAvatarUrl={accountInfo?.avatarUrl ?? null}
         tradeCategories={tradeCategories}
         provinces={provinces}
