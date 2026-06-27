@@ -48,11 +48,11 @@ export default async function AdminProfessionalsPage({
         Profesionales
       </h1>
 
-      <form className="mt-4 flex flex-wrap gap-3" method="get">
+      <form className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap" method="get">
         <select
           name="tradeId"
           defaultValue={parsed.tradeId ?? ""}
-          className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
+          className="w-full rounded border border-sb-border px-3 py-2 sm:w-auto dark:border-sb-border-dark"
         >
           <option value="">Todos los oficios</option>
           {tradeCategories.map((category) => (
@@ -69,7 +69,7 @@ export default async function AdminProfessionalsPage({
         <select
           name="departmentId"
           defaultValue={parsed.departmentId ?? ""}
-          className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
+          className="w-full rounded border border-sb-border px-3 py-2 sm:w-auto dark:border-sb-border-dark"
         >
           <option value="">Todas las zonas</option>
           {departments.map((department) => (
@@ -79,29 +79,31 @@ export default async function AdminProfessionalsPage({
           ))}
         </select>
 
-        <select
-          name="active"
-          defaultValue={parsed.active ?? ""}
-          className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
-        >
-          <option value="">Activo: todos</option>
-          <option value="yes">Activos</option>
-          <option value="no">Inactivos</option>
-        </select>
+        <div className="grid grid-cols-2 gap-3 sm:contents">
+          <select
+            name="active"
+            defaultValue={parsed.active ?? ""}
+            className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
+          >
+            <option value="">Activo: todos</option>
+            <option value="yes">Activos</option>
+            <option value="no">Inactivos</option>
+          </select>
 
-        <select
-          name="verified"
-          defaultValue={parsed.verified ?? ""}
-          className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
-        >
-          <option value="">Verificado: todos</option>
-          <option value="yes">Verificados</option>
-          <option value="no">No verificados</option>
-        </select>
+          <select
+            name="verified"
+            defaultValue={parsed.verified ?? ""}
+            className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
+          >
+            <option value="">Verificado: todos</option>
+            <option value="yes">Verificados</option>
+            <option value="no">No verificados</option>
+          </select>
+        </div>
 
         <button
           type="submit"
-          className="rounded bg-sb-blue px-4 py-2 text-sm font-medium text-white"
+          className="w-full rounded bg-sb-blue px-4 py-2 text-sm font-medium text-white sm:w-auto"
         >
           Filtrar
         </button>
