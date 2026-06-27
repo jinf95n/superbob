@@ -48,8 +48,23 @@ export default function AuthLayout({
         </div>
       </div>
 
-      <div className="flex w-full items-center justify-center overflow-y-auto bg-white lg:w-1/2">
-        {children}
+      <div className="relative flex w-full items-center justify-center overflow-y-auto bg-white lg:w-1/2">
+        {/* Imagen decorativa en mobile — oculta en desktop (el desktop tiene su propio panel izquierdo) */}
+        <div
+          className="pointer-events-none absolute inset-0 overflow-hidden lg:hidden"
+          aria-hidden="true"
+        >
+          <Image
+            src="/images/hero-professional.png"
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover opacity-[0.15]"
+          />
+        </div>
+        <div className="relative z-10 flex w-full items-center justify-center">
+          {children}
+        </div>
       </div>
     </div>
   );
