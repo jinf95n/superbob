@@ -8,14 +8,23 @@ interface BioDisplayProps {
 export function BioDisplay({ rawBio, professionalName }: BioDisplayProps) {
   const bio = parseBio(rawBio);
 
+  const hasNonDefaultLanguages =
+    bio.languages.length > 0 &&
+    !(bio.languages.length === 1 && bio.languages[0] === "Español");
+
   const isEmpty =
     bio.jobTypes.length === 0 &&
     !bio.guarantee.offersGuarantee &&
     bio.availability.days.length === 0 &&
+    !bio.availability.hours &&
+    !bio.availability.allowsUrgentCalls &&
     bio.paymentMethods.length === 0 &&
     !bio.license.isLicensed &&
     !bio.hasInsurance &&
-    bio.freeText.length === 0;
+    bio.billing.length === 0 &&
+    bio.workModality.length === 0 &&
+    !hasNonDefaultLanguages &&
+    !bio.freeText;
 
   if (isEmpty) return null;
 
@@ -162,24 +171,23 @@ export function BioDisplay({ rawBio, professionalName }: BioDisplayProps) {
           </div>
         )}
 
-        {bio.languages.length > 0 &&
-          !(bio.languages.length === 1 && bio.languages[0] === "Español") && (
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-sb-muted">
-                🌐 Idiomas
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {bio.languages.map((l) => (
-                  <span
-                    key={l}
-                    className="rounded-full border border-sb-border bg-sb-bg px-3 py-1.5 text-xs text-sb-text"
-                  >
-                    {l}
-                  </span>
-                ))}
-              </div>
+        {hasNonDefaultLanguages && (
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wider text-sb-muted">
+              🌐 Idiomas
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {bio.languages.map((l) => (
+                <span
+                  key={l}
+                  className="rounded-full border border-sb-border bg-sb-bg px-3 py-1.5 text-xs text-sb-text"
+                >
+                  {l}
+                </span>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
         {bio.freeText && (
           <div className="mt-1 border-t border-sb-border pt-4">

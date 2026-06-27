@@ -97,7 +97,15 @@ export function parseBio(raw: string | null): ProfessionalBio {
   if (!raw) return EMPTY_BIO;
   try {
     const parsed = JSON.parse(raw);
-    if (parsed.version && parsed.version >= 2) return parsed as ProfessionalBio;
+    if (parsed.version && parsed.version >= 2) {
+      return {
+        ...EMPTY_BIO,
+        ...parsed,
+        availability: { ...EMPTY_BIO.availability, ...(parsed.availability ?? {}) },
+        guarantee: { ...EMPTY_BIO.guarantee, ...(parsed.guarantee ?? {}) },
+        license: { ...EMPTY_BIO.license, ...(parsed.license ?? {}) },
+      } as ProfessionalBio;
+    }
     return { ...EMPTY_BIO, freeText: parsed.freeText ?? raw };
   } catch {
     return { ...EMPTY_BIO, freeText: raw };
