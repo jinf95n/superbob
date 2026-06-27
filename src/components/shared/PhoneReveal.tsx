@@ -106,13 +106,13 @@ export function PhoneReveal({
       variant === "bar"
         ? "fixed bottom-16 left-0 right-0 z-20 border-t border-sb-border bg-white px-4 py-3 sm:static sm:border-0 sm:bg-transparent sm:px-0 sm:py-0"
         : inlineWrapper;
-    const phoneTextClass =
-      variant === "bar"
-        ? "mb-2 text-center text-[12px] text-sb-muted sm:text-left sm:text-[13px] sm:font-semibold sm:text-sb-text"
-        : "mb-2 text-center text-[13px] font-semibold text-sb-text sm:text-left";
     return (
       <div className={revealedWrapper}>
-        <p className={phoneTextClass}>{phone}</p>
+        {variant === "inline" && (
+          <p className="mb-2 text-center text-[13px] font-semibold text-sb-text sm:text-left">
+            {phone}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <a
             href={`tel:${phone}`}

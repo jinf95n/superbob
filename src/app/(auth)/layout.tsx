@@ -59,7 +59,7 @@ export default function AuthLayout({
             alt=""
             fill
             sizes="100vw"
-            className="object-contain object-bottom opacity-[0.07]"
+            className="object-cover opacity-[0.15]"
           />
         </div>
         <div className="relative z-10 flex w-full items-center justify-center">
