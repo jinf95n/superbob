@@ -25,7 +25,7 @@ export default async function AdminDashboard() {
           Panel de administración
         </h1>
         <p className="mt-1 text-sm text-sb-muted">
-          SUPERBOB · San Juan · Fase 1
+          SUPERBOB · Fase 1
         </p>
       </div>
 

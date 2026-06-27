@@ -58,7 +58,7 @@ export const auth = betterAuth({
                 </div>
                 <div style="padding:20px 32px;border-top:1px solid #E2E2DF;text-align:center;">
                   <p style="margin:0;color:#5A5A58;font-size:12px;">
-                    SUPERBOB · San Juan, Argentina<br>
+                    SUPERBOB · Argentina<br>
                     <a href="https://superbob.com.ar" style="color:#1A6FE0;text-decoration:none;">superbob.com.ar</a>
                   </p>
                 </div>

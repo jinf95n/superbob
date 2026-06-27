@@ -1,72 +1,50 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const MAX_FREE_TEXT_LENGTH = 300;
-
-const YEARS_EXP_OPTIONS = ["1-2 años", "3-5 años", "6-10 años", "Más de 10 años"];
-
-const JOB_TYPE_OPTIONS = [
-  "Urgencias",
-  "Obras nuevas",
-  "Reformas",
-  "Mantenimiento",
-  "Presupuestos sin cargo",
-  "Trabajos en altura",
-];
-
-const AVAILABILITY_OPTIONS = [
-  "Lunes a viernes",
-  "Sábados",
-  "Domingos",
-  "Feriados",
-  "Guardias 24hs",
-];
-
-const ZONE_OPTIONS = ["Solo mi departamento", "Toda la provincia", "Consultar"];
-
-type Guarantee = "yes" | "no" | null;
-
-type BioFormData = {
-  yearsExp: string | null;
-  jobTypes: string[];
-  guarantee: Guarantee;
-  availability: string[];
-  zone: string | null;
-  freeText: string;
-};
-
-function generateBioText(data: BioFormData): string {
-  const parts: string[] = [];
-
-  if (data.yearsExp) {
-    parts.push(`Profesional con ${data.yearsExp.toLowerCase()} de experiencia.`);
-  }
-
-  if (data.jobTypes.length > 0) {
-    parts.push(`Me especializo en ${data.jobTypes.join(", ").toLowerCase()}.`);
-  }
-
-  if (data.guarantee === "yes") {
-    parts.push("Ofrezco garantía por escrito en todos mis trabajos.");
-  }
-
-  if (data.availability.length > 0) {
-    parts.push(`Disponible ${data.availability.join(", ").toLowerCase()}.`);
-  }
-
-  if (data.freeText.trim()) {
-    parts.push(data.freeText.trim());
-  }
-
-  return parts.join(" ");
-}
+import {
+  BIO_OPTIONS,
+  ProfessionalBio,
+  parseBio,
+  serializeBio,
+} from "@/lib/bioTypes";
 
 type BioBuilderProps = {
-  initialValue?: string | null;
-  onChange: (bio: string) => void;
-  primaryTradeSlug?: string;
+  initialBio: string | null;
+  onChange: (serialized: string) => void;
 };
+
+type SectionMeta = { id: string; title: string; emoji: string };
+
+const SECTIONS: SectionMeta[] = [
+  { id: "jobTypes", title: "Tipo de trabajos", emoji: "🔧" },
+  { id: "availability", title: "Disponibilidad", emoji: "📅" },
+  { id: "guarantee", title: "Garantía", emoji: "🛡️" },
+  { id: "payment", title: "Métodos de pago", emoji: "💳" },
+  { id: "billing", title: "Facturación", emoji: "🧾" },
+  { id: "license", title: "Habilitaciones", emoji: "📋" },
+  { id: "modality", title: "Modalidad de trabajo", emoji: "📍" },
+  { id: "languages", title: "Idiomas", emoji: "🌐" },
+  { id: "freeText", title: "Descripción libre", emoji: "✏️" },
+];
+
+function getSectionBadge(id: string, bio: ProfessionalBio): string | null {
+  switch (id) {
+    case "jobTypes":
+      return bio.jobTypes.length > 0 ? `${bio.jobTypes.length} seleccionados` : null;
+    case "availability":
+      return bio.availability.days.length > 0 ? "Completado" : null;
+    case "guarantee":
+      return bio.guarantee.offersGuarantee ? "Con garantía" : null;
+    case "payment":
+      return bio.paymentMethods.length > 0 ? `${bio.paymentMethods.length} métodos` : null;
+    case "license":
+      return bio.license.isLicensed ? "Habilitado" : null;
+    case "freeText":
+      return bio.freeText.length > 0 ? `${bio.freeText.length} caracteres` : null;
+    default:
+      return null;
+  }
+}
 
 function Chip({
   label,
@@ -81,10 +59,10 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-[14px] py-[6px] text-[13px] transition-colors duration-150 ease-in-out ${
+      className={`rounded-full px-4 py-2 text-[13px] transition-colors ${
         selected
           ? "bg-sb-blue text-white"
-          : "border border-sb-border bg-white text-sb-muted"
+          : "border border-sb-border bg-white text-sb-muted hover:border-sb-blue"
       }`}
     >
       {label}
@@ -92,26 +70,56 @@ function Chip({
   );
 }
 
-export function BioBuilder({ initialValue, onChange }: BioBuilderProps) {
-  const hasInitialValue = Boolean(initialValue?.trim());
+function Toggle({
+  value,
+  onToggle,
+}: {
+  value: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      role="switch"
+      aria-checked={value}
+      onClick={onToggle}
+      className={`relative h-6 w-12 cursor-pointer rounded-full transition-colors ${
+        value ? "bg-sb-blue" : "bg-sb-border"
+      }`}
+    >
+      <div
+        className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+          value ? "translate-x-7" : "translate-x-1"
+        }`}
+      />
+    </div>
+  );
+}
 
-  const [data, setData] = useState<BioFormData>({
-    yearsExp: null,
-    jobTypes: [],
-    guarantee: null,
-    availability: [],
-    zone: null,
-    freeText: hasInitialValue ? (initialValue as string) : "",
-  });
+const INPUT_CLASSES =
+  "w-full rounded-xl border border-sb-border px-3.5 py-2.5 text-[14px] text-sb-text outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10";
+
+export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
+  const [bio, setBio] = useState<ProfessionalBio>(() => parseBio(initialBio));
+  const [openSection, setOpenSection] = useState<string | null>("jobTypes");
 
   useEffect(() => {
-    onChange(generateBioText(data));
+    onChange(serializeBio(bio));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  }, [bio]);
 
-  function toggleMulti(key: "jobTypes" | "availability", value: string) {
-    setData((prev) => {
-      const current = prev[key];
+  function toggleSection(id: string) {
+    setOpenSection((prev) => (prev === id ? null : id));
+  }
+
+  function toggleMulti(
+    key: keyof Pick<
+      ProfessionalBio,
+      "jobTypes" | "paymentMethods" | "languages" | "workModality" | "billing"
+    >,
+    value: string,
+  ) {
+    setBio((prev) => {
+      const current = prev[key] as string[];
       const next = current.includes(value)
         ? current.filter((v) => v !== value)
         : [...current, value];
@@ -119,154 +127,310 @@ export function BioBuilder({ initialValue, onChange }: BioBuilderProps) {
     });
   }
 
-  const previewText = generateBioText(data);
+  function toggleDay(day: string) {
+    setBio((prev) => {
+      const days = prev.availability.days;
+      const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day];
+      return { ...prev, availability: { ...prev.availability, days: next } };
+    });
+  }
 
-  return (
-    <div className="flex flex-col gap-4">
-      {hasInitialValue && (
-        <p className="text-[13px] text-sb-muted/70">
-          Editá tu descripción anterior o usá las opciones de abajo para
-          reemplazarla.
-        </p>
-      )}
+  function selectHour(hour: string) {
+    setBio((prev) => ({
+      ...prev,
+      availability: {
+        ...prev.availability,
+        hours: prev.availability.hours === hour ? "" : hour,
+      },
+    }));
+  }
 
-      <div className="flex flex-col gap-3 rounded-xl bg-sb-bg p-4">
+  const sectionContent: Record<string, React.ReactNode> = {
+    jobTypes: (
+      <div className="flex flex-wrap gap-2">
+        {BIO_OPTIONS.jobTypes.map((opt) => (
+          <Chip
+            key={opt}
+            label={opt}
+            selected={bio.jobTypes.includes(opt)}
+            onClick={() => toggleMulti("jobTypes", opt)}
+          />
+        ))}
+      </div>
+    ),
+
+    availability: (
+      <div className="flex flex-col gap-4">
         <div>
-          <p className="text-[14px] text-sb-text">
-            ¿Cuántos años de experiencia tenés?
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {YEARS_EXP_OPTIONS.map((option) => (
+          <p className="mb-2 text-[13px] font-medium text-sb-muted">Días</p>
+          <div className="flex flex-wrap gap-2">
+            {BIO_OPTIONS.availability.days.map((day) => (
               <Chip
-                key={option}
-                label={option}
-                selected={data.yearsExp === option}
-                onClick={() =>
-                  setData((prev) => ({
-                    ...prev,
-                    yearsExp: prev.yearsExp === option ? null : option,
-                  }))
-                }
+                key={day}
+                label={day}
+                selected={bio.availability.days.includes(day)}
+                onClick={() => toggleDay(day)}
               />
             ))}
           </div>
         </div>
-
         <div>
-          <p className="text-[14px] text-sb-text">¿Qué tipo de trabajos hacés?</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {JOB_TYPE_OPTIONS.map((option) => (
+          <p className="mb-2 text-[13px] font-medium text-sb-muted">Horario</p>
+          <div className="flex flex-wrap gap-2">
+            {BIO_OPTIONS.availability.hours.map((hour) => (
               <Chip
-                key={option}
-                label={option}
-                selected={data.jobTypes.includes(option)}
-                onClick={() => toggleMulti("jobTypes", option)}
+                key={hour}
+                label={hour}
+                selected={bio.availability.hours === hour}
+                onClick={() => selectHour(hour)}
               />
             ))}
           </div>
         </div>
+        <label className="flex cursor-pointer items-center justify-between py-1">
+          <span className="text-[14px] text-sb-text">Atiende llamados de urgencia</span>
+          <Toggle
+            value={bio.availability.allowsUrgentCalls}
+            onToggle={() =>
+              setBio((prev) => ({
+                ...prev,
+                availability: {
+                  ...prev.availability,
+                  allowsUrgentCalls: !prev.availability.allowsUrgentCalls,
+                },
+              }))
+            }
+          />
+        </label>
+      </div>
+    ),
 
+    guarantee: (
+      <div>
+        <label className="flex cursor-pointer items-center justify-between">
+          <span className="text-[14px] text-sb-text">Ofrezco garantía por mi trabajo</span>
+          <Toggle
+            value={bio.guarantee.offersGuarantee}
+            onToggle={() =>
+              setBio((prev) => ({
+                ...prev,
+                guarantee: {
+                  ...prev.guarantee,
+                  offersGuarantee: !prev.guarantee.offersGuarantee,
+                },
+              }))
+            }
+          />
+        </label>
+        {bio.guarantee.offersGuarantee && (
+          <textarea
+            value={bio.guarantee.details}
+            onChange={(e) =>
+              setBio((prev) => ({
+                ...prev,
+                guarantee: { ...prev.guarantee, details: e.target.value },
+              }))
+            }
+            placeholder="Ej: Garantía de 3 meses en mano de obra para instalaciones."
+            rows={2}
+            maxLength={200}
+            className="mt-3 w-full resize-none rounded-xl border border-sb-border px-4 py-3 text-[14px] text-sb-text outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10"
+          />
+        )}
+      </div>
+    ),
+
+    payment: (
+      <div className="flex flex-wrap gap-2">
+        {BIO_OPTIONS.paymentMethods.map((opt) => (
+          <Chip
+            key={opt}
+            label={opt}
+            selected={bio.paymentMethods.includes(opt)}
+            onClick={() => toggleMulti("paymentMethods", opt)}
+          />
+        ))}
+      </div>
+    ),
+
+    billing: (
+      <div className="flex flex-wrap gap-2">
+        {BIO_OPTIONS.billing.map((opt) => (
+          <Chip
+            key={opt}
+            label={opt}
+            selected={bio.billing.includes(opt)}
+            onClick={() => toggleMulti("billing", opt)}
+          />
+        ))}
+      </div>
+    ),
+
+    license: (
+      <div className="flex flex-col gap-4">
         <div>
-          <p className="text-[14px] text-sb-text">
-            ¿Ofrecés garantía por tu trabajo?
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Chip
-              label="Sí, doy garantía"
-              selected={data.guarantee === "yes"}
-              onClick={() =>
-                setData((prev) => ({
+          <label className="flex cursor-pointer items-center justify-between">
+            <span className="text-[14px] text-sb-text">
+              Tengo matrícula o habilitación oficial
+            </span>
+            <Toggle
+              value={bio.license.isLicensed}
+              onToggle={() =>
+                setBio((prev) => ({
                   ...prev,
-                  guarantee: prev.guarantee === "yes" ? null : "yes",
+                  license: { ...prev.license, isLicensed: !prev.license.isLicensed },
                 }))
               }
             />
-            <Chip
-              label="Sin garantía"
-              selected={data.guarantee === "no"}
-              onClick={() =>
-                setData((prev) => ({
-                  ...prev,
-                  guarantee: prev.guarantee === "no" ? null : "no",
-                }))
-              }
-            />
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[14px] text-sb-text">¿Cuándo trabajás?</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {AVAILABILITY_OPTIONS.map((option) => (
-              <Chip
-                key={option}
-                label={option}
-                selected={data.availability.includes(option)}
-                onClick={() => toggleMulti("availability", option)}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <p className="text-[14px] text-sb-text">
-            ¿Trabajás en toda la provincia?
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {ZONE_OPTIONS.map((option) => (
-              <Chip
-                key={option}
-                label={option}
-                selected={data.zone === option}
-                onClick={() =>
-                  setData((prev) => ({
+          </label>
+          {bio.license.isLicensed && (
+            <div className="mt-3 flex flex-col gap-2">
+              <input
+                type="text"
+                value={bio.license.number}
+                onChange={(e) =>
+                  setBio((prev) => ({
                     ...prev,
-                    zone: prev.zone === option ? null : option,
+                    license: { ...prev.license, number: e.target.value },
                   }))
                 }
+                placeholder="N.º de matrícula o registro"
+                className={INPUT_CLASSES}
               />
-            ))}
-          </div>
+              <input
+                type="text"
+                value={bio.license.entity}
+                onChange={(e) =>
+                  setBio((prev) => ({
+                    ...prev,
+                    license: { ...prev.license, entity: e.target.value },
+                  }))
+                }
+                placeholder="Entidad habilitante (ej: Enargas, INTI...)"
+                className={INPUT_CLASSES}
+              />
+            </div>
+          )}
         </div>
+        <label className="flex cursor-pointer items-center justify-between border-t border-sb-border pt-4">
+          <span className="text-[14px] text-sb-text">
+            Cuento con seguro de responsabilidad civil
+          </span>
+          <Toggle
+            value={bio.hasInsurance}
+            onToggle={() =>
+              setBio((prev) => ({ ...prev, hasInsurance: !prev.hasInsurance }))
+            }
+          />
+        </label>
       </div>
+    ),
 
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-sb-border" />
-        <span className="text-[13px] text-sb-muted">
-          Algo más que quieras agregar (opcional)
-        </span>
-        <span className="h-px flex-1 bg-sb-border" />
+    modality: (
+      <div className="flex flex-wrap gap-2">
+        {BIO_OPTIONS.workModality.map((opt) => (
+          <Chip
+            key={opt}
+            label={opt}
+            selected={bio.workModality.includes(opt)}
+            onClick={() => toggleMulti("workModality", opt)}
+          />
+        ))}
       </div>
+    ),
 
+    languages: (
+      <div className="flex flex-wrap gap-2">
+        {BIO_OPTIONS.languages.map((opt) => (
+          <Chip
+            key={opt}
+            label={opt}
+            selected={bio.languages.includes(opt)}
+            onClick={() => toggleMulti("languages", opt)}
+          />
+        ))}
+      </div>
+    ),
+
+    freeText: (
       <div>
         <textarea
-          value={data.freeText}
-          onChange={(event) =>
-            setData((prev) => ({
+          value={bio.freeText}
+          onChange={(e) =>
+            setBio((prev) => ({
               ...prev,
-              freeText: event.target.value.slice(0, MAX_FREE_TEXT_LENGTH),
+              freeText: e.target.value.slice(0, 500),
             }))
           }
-          maxLength={MAX_FREE_TEXT_LENGTH}
-          rows={3}
-          placeholder="Ej: Trabajo con materiales de primera calidad. Doy factura. Hablo antes del trabajo para que no haya sorpresas."
-          className="w-full rounded border border-sb-border px-3 py-2 text-[15px] text-sb-text focus:border-sb-blue focus:outline-none"
+          rows={4}
+          maxLength={500}
+          placeholder="Contá algo más sobre vos y tu forma de trabajar. ¿Qué te diferencia? ¿Qué garantizás a tus clientes?"
+          className="w-full resize-none rounded-xl border border-sb-border px-3.5 py-3 text-[14px] text-sb-text outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10"
         />
         <p className="mt-1 text-right text-[12px] text-sb-muted">
-          {data.freeText.length}/{MAX_FREE_TEXT_LENGTH}
+          {bio.freeText.length}/500
         </p>
       </div>
+    ),
+  };
 
-      <div className="flex flex-col gap-2 border-t border-sb-border pt-4">
-        <p className="text-[13px] font-medium text-sb-muted">
-          Así se verá tu descripción:
-        </p>
-        <div className="rounded-xl border-[1.5px] border-sb-border bg-white p-4">
-          <p className="text-[14px] leading-[1.6] text-sb-text">
-            {previewText || "Completá las opciones de arriba para generar tu descripción."}
-          </p>
-        </div>
-      </div>
+  return (
+    <div className="flex flex-col gap-2">
+      {SECTIONS.map((section) => {
+        const badge = getSectionBadge(section.id, bio);
+        const isOpen = openSection === section.id;
+        return (
+          <div
+            key={section.id}
+            className="overflow-hidden rounded-xl border border-sb-border"
+          >
+            <button
+              type="button"
+              onClick={() => toggleSection(section.id)}
+              className="flex w-full items-center justify-between bg-white px-4 py-3.5"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="text-base" role="img" aria-label="">
+                  {section.emoji}
+                </span>
+                <span className="text-[14px] font-medium text-sb-text">
+                  {section.title}
+                </span>
+                {badge && (
+                  <span className="rounded-full bg-sb-success/10 px-2 py-0.5 text-[11px] font-medium text-sb-success">
+                    {badge}
+                  </span>
+                )}
+              </div>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                className={`shrink-0 text-sb-muted transition-transform ${
+                  isOpen ? "rotate-180" : ""
+                }`}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <div
+              style={{
+                maxHeight: isOpen ? "2000px" : "0",
+                overflow: "hidden",
+                transition: "max-height 0.3s ease-in-out",
+              }}
+            >
+              <div className="border-t border-sb-border px-4 py-4">
+                {sectionContent[section.id]}
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

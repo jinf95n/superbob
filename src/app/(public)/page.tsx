@@ -67,7 +67,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-6xl lg:flex lg:items-center lg:gap-12">
           <div className="lg:w-[55%]">
             <p className="text-[13px] font-medium uppercase tracking-[0.08em] text-white/60">
-              San Juan · Directorio de oficios
+              Directorio de oficios
             </p>
 
             <h1 className="font-display mt-3 text-[44px] font-extrabold leading-[1.1] text-white lg:text-[56px]">
@@ -158,7 +158,7 @@ export default async function HomePage() {
               Profesionales recomendados
             </h2>
             <p className="mt-1 text-[14px] text-sb-muted">
-              Los más contratados y mejor evaluados de San Juan.
+              Los más contratados y mejor evaluados.
             </p>
 
             <div
