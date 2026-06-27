@@ -21,6 +21,7 @@ import { ReviewsList } from "@/components/shared/ReviewsList";
 import { PhotoGallery } from "@/components/shared/PhotoGallery";
 import { ShareProfileBlock } from "@/components/shared/ShareProfileBlock";
 import { DesktopShareButtons } from "@/components/shared/DesktopShareButtons";
+import { BioDisplay } from "@/components/shared/BioDisplay";
 
 type ProfessionalPublicProfilePageProps = {
   params: Promise<{ slug: string }>;
@@ -466,23 +467,12 @@ export default async function ProfessionalPublicProfilePage({
 
             {/* Bio — mobile: pos. 4 · desktop: pos. 4 (después de reseñas) */}
             {professional.bio && (
-              <section className="rounded-2xl bg-white p-5 lg:order-4">
-                <p className="text-[15px] italic leading-relaxed text-sb-muted">
-                  &ldquo;{professional.bio}&rdquo;
-                </p>
-                {professional.specialties.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {professional.specialties.map((specialty) => (
-                      <span
-                        key={specialty}
-                        className="rounded-full border border-sb-border bg-sb-bg px-3 py-1 text-[13px] font-medium text-sb-text"
-                      >
-                        {specialty}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </section>
+              <div className="lg:order-4">
+                <BioDisplay
+                  rawBio={professional.bio}
+                  professionalName={professional.fullName}
+                />
+              </div>
             )}
 
             {/* Portafolio — mobile: pos. 5 · desktop: pos. 2 (después de score) */}

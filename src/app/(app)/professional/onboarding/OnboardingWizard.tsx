@@ -246,7 +246,7 @@ export function OnboardingWizard({
               Contanos sobre tu trabajo
             </label>
             <div className="mt-2">
-              <BioBuilder initialValue={null} onChange={setBio} />
+              <BioBuilder initialBio={null} onChange={setBio} />
             </div>
           </div>
 

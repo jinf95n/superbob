@@ -266,7 +266,7 @@ export function ProfessionalEditWizard({
               <p className="mb-2 text-[13px] font-medium text-sb-muted">
                 Descripción
               </p>
-              <BioBuilder initialValue={profile.bio} onChange={setBio} />
+              <BioBuilder initialBio={profile.bio} onChange={setBio} />
             </div>
 
             <div>

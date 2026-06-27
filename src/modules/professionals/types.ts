@@ -84,7 +84,7 @@ export const CreateProfessionalProfileSchema = z
   .object({
     bio: z.preprocess(
       emptyToUndefined,
-      z.string().trim().max(500, "Máximo 500 caracteres").optional(),
+      z.string().trim().max(10000).optional(),
     ),
     contactPhone: z
       .string()
