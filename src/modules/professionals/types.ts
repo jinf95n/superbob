@@ -186,15 +186,17 @@ export type ProfessionalFullProfile = {
   satisfactionRate: number | null;
 };
 
-export type SuperbobScoreComponent = {
+export type PrivateSuperbobScoreComponent = {
   label: string;
+  emoji: string;
   value: number;
   max: number;
+  hint: string | null;
 };
 
-export type SuperbobScoreBreakdown = {
+export type PrivateSuperbobScoreBreakdown = {
   total: number;
-  components: SuperbobScoreComponent[];
+  components: PrivateSuperbobScoreComponent[];
 };
 
 export type ProfessionalBadge = {

@@ -5,12 +5,14 @@ import { auth } from "@/lib/auth";
 import {
   getProfessionalProfileForEdit,
   getProfileCompleteness,
+  getPrivateSuperbobScore,
 } from "@/modules/professionals/queries";
 import { getActiveTradesForFilter } from "@/modules/trades/queries";
 import { getProvincesWithDepartments } from "@/modules/geography/queries";
 import { getUserAccountInfo } from "@/modules/users/queries";
 import { getPortfolioPhotosForProfessional } from "@/modules/photos/queries";
 import { ProfileCompletionCard } from "@/components/shared/ProfileCompletionCard";
+import { SuperbobScoreCard } from "@/components/shared/SuperbobScoreCard";
 import { ProfessionalEditWizard } from "./ProfessionalEditWizard";
 
 type ProfessionalEditPageProps = {
@@ -33,13 +35,14 @@ export default async function ProfessionalEditPage({
   const { welcome } = await searchParams;
   const showWelcome = welcome === "1";
 
-  const [tradeCategories, provinces, accountInfo, photos, completeness] =
+  const [tradeCategories, provinces, accountInfo, photos, completeness, scoreBreakdown] =
     await Promise.all([
       getActiveTradesForFilter(),
       getProvincesWithDepartments(),
       getUserAccountInfo(session.user.id),
       getPortfolioPhotosForProfessional(profile.id),
       getProfileCompleteness(profile.id),
+      getPrivateSuperbobScore(profile.id),
     ]);
 
   return (
@@ -80,8 +83,9 @@ export default async function ProfessionalEditPage({
         Perfil profesional
       </h1>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-col gap-4">
         <ProfileCompletionCard completeness={completeness} />
+        <SuperbobScoreCard breakdown={scoreBreakdown} />
       </div>
 
       <ProfessionalEditWizard

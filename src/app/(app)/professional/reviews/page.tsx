@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import {
   getProfessionalProfileIdByUserId,
   getProfessionalTradesForSelector,
+  getPrivateSuperbobScore,
 } from "@/modules/professionals/queries";
 import { getProfessionalContactsForReview } from "@/modules/contacts/queries";
 import {
@@ -11,6 +12,7 @@ import {
   getPublishedReviewsForProfessional,
 } from "@/modules/reviews/queries";
 import { Badge } from "@/components/ui/Badge";
+import { SuperbobScoreCard } from "@/components/shared/SuperbobScoreCard";
 import { ContactsForReviewList } from "./ContactsForReviewList";
 import { RateClientForm } from "./RateClientForm";
 
@@ -25,12 +27,13 @@ export default async function ProfessionalReviewsPage() {
     redirect("/professional/onboarding");
   }
 
-  const [contacts, professionalTrades, pendingRatings, publishedReviews] =
+  const [contacts, professionalTrades, pendingRatings, publishedReviews, scoreBreakdown] =
     await Promise.all([
       getProfessionalContactsForReview(professionalId),
       getProfessionalTradesForSelector(professionalId),
       getPendingReviewsForProfessional(professionalId),
       getPublishedReviewsForProfessional(professionalId),
+      getPrivateSuperbobScore(professionalId),
     ]);
 
   return (
@@ -38,6 +41,10 @@ export default async function ProfessionalReviewsPage() {
       <h1 className="font-display text-[28px] font-bold text-sb-text">
         Reseñas recibidas
       </h1>
+
+      <div className="mt-6">
+        <SuperbobScoreCard breakdown={scoreBreakdown} />
+      </div>
 
       <section className="mt-6">
         <h2 className="font-display text-[18px] font-semibold text-sb-text">

@@ -8,7 +8,6 @@ import {
   getProfessionalContactPhone,
   getProfessionalProfileBySlug,
   getProfileCompleteness,
-  getSuperbobScoreBreakdown,
 } from "@/modules/professionals/queries";
 import { checkUserHasPendingReview } from "@/modules/reviews/queries";
 import { checkUserHadContact } from "@/modules/contacts/queries";
@@ -55,11 +54,10 @@ export default async function ProfessionalPublicProfilePage({
   const isOwner = session?.user.id === professional.userId;
   const isClient = session && !isOwner;
 
-  const [badges, contactMetrics, scoreBreakdown, completeness, contactPhone, pendingReview, hasContact] =
+  const [badges, contactMetrics, completeness, contactPhone, pendingReview, hasContact] =
     await Promise.all([
       getProfessionalBadges(professional.id),
       getContactMetrics(professional.id),
-      getSuperbobScoreBreakdown(professional.id),
       isOwner ? getProfileCompleteness(professional.id) : Promise.resolve(null),
       session ? getProfessionalContactPhone(professional.id) : Promise.resolve(null),
       isClient
@@ -414,46 +412,6 @@ export default async function ProfessionalPublicProfilePage({
                       </p>
                     </div>
                   )}
-                </div>
-              </section>
-            )}
-
-            {/* Índice SUPERBOB — desktop: posición 1 (order 0, primero por defecto) */}
-            {scoreBreakdown && (
-              <section className="rounded-2xl bg-white p-5">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display text-[18px] font-semibold text-sb-text">
-                    Índice SUPERBOB
-                  </h2>
-                  <span className="font-display text-[32px] font-extrabold text-sb-blue">
-                    {scoreBreakdown.total}
-                  </span>
-                </div>
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-sb-bg">
-                  <div
-                    className="h-full rounded-full bg-sb-blue"
-                    style={{ width: `${scoreBreakdown.total}%` }}
-                  />
-                </div>
-                <div className="mt-5 flex flex-col gap-3">
-                  {scoreBreakdown.components.map((component) => (
-                    <div key={component.label}>
-                      <div className="flex items-center justify-between text-[13px]">
-                        <span className="text-sb-text">{component.label}</span>
-                        <span className="text-sb-muted">
-                          {component.value}/{component.max}
-                        </span>
-                      </div>
-                      <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-sb-bg">
-                        <div
-                          className="h-full rounded-full bg-sb-blue"
-                          style={{
-                            width: `${(component.value / component.max) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </section>
             )}
