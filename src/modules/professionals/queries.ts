@@ -17,8 +17,8 @@ import {
   ProfileCompletenessLevel,
   ProfileCompletionItem,
   SearchableProfessional,
-  SuperbobScoreBreakdown,
-  SuperbobScoreComponent,
+  PrivateSuperbobScoreBreakdown,
+  PrivateSuperbobScoreComponent,
 } from "./types";
 
 const PROFILE_SCORE_POINTS = {
@@ -663,69 +663,135 @@ export async function getProfileCompleteness(
   return { score, level: getCompletenessLevel(score), items };
 }
 
-const SUPERBOB_SCORE_NEUTRAL_RESPONSE_TIME_POINTS = 7;
 const MS_PER_MONTH = 1000 * 60 * 60 * 24 * 30;
 
 /**
- * Desglose completo del Índice SUPERBOB (los 5 componentes definidos en el
- * rediseño) para la card de score. Devuelve null si el profesional no tiene
- * ninguna reseña publicada: sin reseñas el componente de calidad (35 de los
- * 100 puntos) no se puede calcular y el número total no sería representativo.
+ * Desglose privado del Índice SUPERBOB para mostrarle al propio profesional.
+ * Métricas: calidad de reseñas (40), completitud de perfil (20),
+ * volumen de contactos (20), verificación (10), antigüedad activa (10).
+ * Cada componente lleva un hint explicando qué mejorar.
  */
-export async function getSuperbobScoreBreakdown(
+export async function getPrivateSuperbobScore(
   professionalId: string,
-): Promise<SuperbobScoreBreakdown | null> {
-  const [scores, completedWorkRecordsCount, completeness, professional] =
-    await Promise.all([
-      getWeightedScores([professionalId]),
-      prisma.workRecord.count({
-        where: { professionalId, type: "completed" },
-      }),
-      getProfileCompleteness(professionalId),
-      prisma.professionalProfile.findUnique({
-        where: { id: professionalId },
-        select: { createdAt: true },
-      }),
-    ]);
-  const scoreEntry = scores.get(professionalId);
+): Promise<PrivateSuperbobScoreBreakdown> {
+  const [scoreEntry, professional, totalContacts, firstReview] = await Promise.all([
+    getWeightedScores([professionalId]).then((scores) => scores.get(professionalId) ?? null),
+    prisma.professionalProfile.findUnique({
+      where: { id: professionalId },
+      select: {
+        isVerified: true,
+        bio: true,
+        contactPhone: true,
+        user: { select: { avatarUrl: true } },
+        professionalTrades: {
+          where: { isPrimary: true, trade: { isActive: true } },
+          select: { id: true },
+          take: 1,
+        },
+        coverageAreas: { select: { id: true }, take: 1 },
+        _count: { select: { workPhotos: true } },
+      },
+    }),
+    prisma.contactEvent.count({ where: { professionalId } }),
+    prisma.review.findFirst({
+      where: { reviewedProfessionalId: professionalId, publishedAt: { not: null } },
+      orderBy: { publishedAt: "asc" },
+      select: { publishedAt: true },
+    }),
+  ]);
 
-  if (!scoreEntry || !professional) {
-    return null;
+  // ── 1. Calidad de reseñas (40 pts) ──
+  // Penalizar con factor de confianza cuando hay menos de 3 reseñas,
+  // para evitar que un perfil con 1 reseña de 5 estrellas puntúe perfecto.
+  const reviewCount = scoreEntry?.reviewCount ?? 0;
+  let reviewQualityValue = 0;
+  let reviewHint: string | null = null;
+  if (reviewCount === 0) {
+    reviewHint = "Pedí tu primera reseña a clientes con los que ya trabajaste.";
+  } else {
+    const confidence = reviewCount >= 3 ? 1 : reviewCount === 2 ? 0.75 : 0.5;
+    reviewQualityValue = Math.round(((scoreEntry?.score ?? 0) / 5) * 40 * confidence);
+    if (reviewCount < 3) {
+      reviewHint = `Con ${reviewCount} reseña${reviewCount > 1 ? "s" : ""}, el puntaje lleva un ajuste de confianza. Llegá a 3 para que cuente al 100%.`;
+    } else if (reviewQualityValue < 32) {
+      reviewHint = "Mantené la calidad en cada trabajo para seguir subiendo.";
+    }
   }
 
-  const reviewQuality = (scoreEntry.score / 5) * 35;
-  const volume = Math.min(completedWorkRecordsCount / 50, 1) * 25;
-  const completenessPoints = (completeness.score / 100) * 15;
-  const monthsOnPlatform =
-    (Date.now() - professional.createdAt.getTime()) / MS_PER_MONTH;
-  const tenure = Math.min(monthsOnPlatform / 24, 1) * 10;
+  // ── 2. Completitud del perfil (20 pts) ──
+  const completenessChecks = [
+    Boolean(professional?.user.avatarUrl),
+    Boolean(professional?.bio && professional.bio.trim().length > 20),
+    (professional?.professionalTrades.length ?? 0) > 0,
+    (professional?.coverageAreas.length ?? 0) > 0,
+    Boolean(professional?.contactPhone),
+    (professional?._count.workPhotos ?? 0) >= 3,
+  ];
+  const completedFields = completenessChecks.filter(Boolean).length;
+  const completenessValue = Math.round((completedFields / 6) * 20);
+  const missingLabels = [
+    "foto de perfil",
+    "bio",
+    "oficio principal",
+    "zona de cobertura",
+    "teléfono de contacto",
+    "3 fotos de portafolio",
+  ].filter((_, i) => !completenessChecks[i]);
+  const completenessHint =
+    missingLabels.length > 0 ? `Completá: ${missingLabels.join(", ")}.` : null;
 
-  const components: SuperbobScoreComponent[] = [
-    { label: "Calidad de reseñas", value: Math.round(reviewQuality), max: 35 },
-    { label: "Volumen de trabajos", value: Math.round(volume), max: 25 },
-    {
-      label: "Tiempo de respuesta",
-      value: SUPERBOB_SCORE_NEUTRAL_RESPONSE_TIME_POINTS,
-      max: 15,
-    },
-    {
-      label: "Completitud del perfil",
-      value: Math.round(completenessPoints),
-      max: 15,
-    },
-    { label: "Antigüedad en la plataforma", value: Math.round(tenure), max: 10 },
+  // ── 3. Volumen de contactos (20 pts) ──
+  // Escala logarítmica: los primeros contactos suman más que los siguientes.
+  // 100 contactos = puntaje máximo.
+  const contactVolumeValue = Math.round(
+    Math.min(Math.log10(totalContacts + 1) / Math.log10(101), 1) * 20,
+  );
+  let contactHint: string | null = null;
+  if (totalContacts === 0) {
+    contactHint = "Aún no recibiste contactos. Compartí tu perfil o código QR para que te encuentren.";
+  } else if (totalContacts < 10) {
+    contactHint = "Compartí tu perfil en WhatsApp o redes para sumar más contactos.";
+  } else if (contactVolumeValue < 17) {
+    contactHint = "Seguí activo. Este puntaje crece logarítmicamente a medida que recibís más contactos.";
+  }
+
+  // ── 4. Verificación (10 pts) ──
+  const verificationValue = professional?.isVerified ? 10 : 0;
+  const verificationHint = professional?.isVerified
+    ? null
+    : "Verificá tu identidad con SUPERBOB para sumar los 10 puntos.";
+
+  // ── 5. Antigüedad activa (10 pts) ──
+  // Empieza desde la primera reseña recibida, no desde el registro.
+  // 24 meses de actividad = puntaje máximo.
+  let tenureValue = 0;
+  let tenureHint: string | null = null;
+  if (!firstReview?.publishedAt) {
+    tenureHint = "Este puntaje empieza a acumularse desde tu primera reseña publicada.";
+  } else {
+    const monthsActive =
+      (Date.now() - new Date(firstReview.publishedAt).getTime()) / MS_PER_MONTH;
+    tenureValue = Math.round(Math.min(monthsActive / 24, 1) * 10);
+    if (tenureValue < 10) {
+      tenureHint =
+        monthsActive < 6
+          ? "Este puntaje crece con el tiempo. Seguí activo en la plataforma."
+          : monthsActive < 12
+            ? "Vas bien. El puntaje de antigüedad sigue subiendo con el tiempo."
+            : "Buen historial. Llegás al máximo a los 2 años de actividad continua.";
+    }
+  }
+
+  const components: PrivateSuperbobScoreComponent[] = [
+    { label: "Calidad de reseñas", emoji: "⭐", value: reviewQualityValue, max: 40, hint: reviewHint },
+    { label: "Completitud del perfil", emoji: "📋", value: completenessValue, max: 20, hint: completenessHint },
+    { label: "Volumen de contactos", emoji: "📞", value: contactVolumeValue, max: 20, hint: contactHint },
+    { label: "Verificación", emoji: "🛡️", value: verificationValue, max: 10, hint: verificationHint },
+    { label: "Antigüedad activa", emoji: "📅", value: tenureValue, max: 10, hint: tenureHint },
   ];
 
-  const total = components.reduce((sum, component) => sum + component.value, 0);
-
+  const total = components.reduce((sum, c) => sum + c.value, 0);
   return { total, components };
-}
-
-export async function calculateSuperbobScore(
-  professionalId: string,
-): Promise<number> {
-  const breakdown = await getSuperbobScoreBreakdown(professionalId);
-  return breakdown?.total ?? 0;
 }
 
 async function getDepartmentTopRank(
