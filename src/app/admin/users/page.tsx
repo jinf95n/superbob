@@ -3,6 +3,7 @@ import { getUsersForAdmin } from "@/modules/users/queries";
 import { AdminUserListParamsSchema } from "@/modules/users/types";
 import { getProvincesWithDepartments, getDepartmentsForFilter } from "@/modules/geography/queries";
 import { Badge } from "@/components/ui/Badge";
+import { AdminUserDeleteButton } from "./AdminUserDeleteButton";
 
 type AdminUsersPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -125,13 +126,14 @@ export default async function AdminUsersPage({
               <th className="py-2 pr-4">Rol</th>
               <th className="py-2 pr-4">Estado</th>
               <th className="py-2 pr-4">Registrado</th>
+              <th className="py-2 pr-4">Acciones</th>
             </tr>
           </thead>
           <tbody>
             {result.users.map((user) => (
               <tr
                 key={user.id}
-                className="border-b border-sb-border dark:border-sb-border-dark"
+                className={`border-b border-sb-border dark:border-sb-border-dark ${user.deletedAt ? "opacity-60" : ""}`}
               >
                 <td className="py-2 pr-4">{user.fullName}</td>
                 <td className="py-2 pr-4">{user.email}</td>
@@ -149,7 +151,9 @@ export default async function AdminUsersPage({
                   )}
                 </td>
                 <td className="py-2 pr-4">
-                  {user.isActive ? (
+                  {user.deletedAt ? (
+                    <Badge variant="error">Eliminado</Badge>
+                  ) : user.isActive ? (
                     <Badge variant="success">Activo</Badge>
                   ) : (
                     <Badge variant="error">Inactivo</Badge>
@@ -157,6 +161,11 @@ export default async function AdminUsersPage({
                 </td>
                 <td className="py-2 pr-4">
                   {user.createdAt.toLocaleDateString("es-AR")}
+                </td>
+                <td className="py-2 pr-4">
+                  {!user.deletedAt && (
+                    <AdminUserDeleteButton userId={user.id} />
+                  )}
                 </td>
               </tr>
             ))}

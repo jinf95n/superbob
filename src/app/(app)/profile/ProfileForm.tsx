@@ -20,6 +20,7 @@ import {
   UserProfileStats,
 } from "@/modules/users/types";
 import { AvatarUploader } from "@/components/shared/AvatarUploader";
+import { DeleteAccountModal } from "@/components/shared/DeleteAccountModal";
 import { Spinner } from "@/components/ui/Spinner";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 
@@ -69,6 +70,7 @@ export function ProfileForm({
   );
 
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (sendOtpState.success) setOtpSent(true);
@@ -445,6 +447,26 @@ export function ProfileForm({
         {isLoggingOut && <Spinner className="h-4 w-4" />}
         {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
       </button>
+
+      {/* Zona de peligro */}
+      <div className="rounded-2xl border border-sb-error/30 bg-white p-5">
+        <p className="text-[13px] font-semibold text-sb-error">Zona de peligro</p>
+        <p className="mt-1 text-[13px] text-sb-muted">
+          Eliminar tu cuenta anonimiza tus datos personales y desactiva tu
+          perfil profesional. Esta acción no se puede deshacer.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowDeleteModal(true)}
+          className="mt-3 text-[13px] font-medium text-sb-error hover:underline"
+        >
+          Eliminar mi cuenta
+        </button>
+      </div>
+
+      {showDeleteModal && (
+        <DeleteAccountModal onClose={() => setShowDeleteModal(false)} />
+      )}
     </div>
   );
 }

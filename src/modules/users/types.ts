@@ -108,6 +108,7 @@ export type AdminUserListItem = {
   phone: string | null;
   role: Role;
   isActive: boolean;
+  deletedAt: Date | null;
   createdAt: Date;
   provinceName: string | null;
   departmentName: string | null;
@@ -120,3 +121,12 @@ export type AdminUserListResult = {
   pageSize: number;
   totalPages: number;
 };
+
+export type AccountDeletionBlocker =
+  | { type: "disputed_work_records"; count: number }
+  | { type: "pending_pro_confirmation_as_professional"; count: number };
+
+export type DeleteAccountResult =
+  | { success: true }
+  | { error: string }
+  | { blocked: true; blockers: AccountDeletionBlocker[] };
