@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  BIO_OPTIONS,
-  ProfessionalBio,
-  parseBio,
-  serializeBio,
-} from "@/lib/bioTypes";
+import { useState } from "react";
+import { BIO_OPTIONS, ProfessionalBio } from "@/lib/bioTypes";
 
 type BioBuilderProps = {
-  initialBio: string | null;
-  onChange: (serialized: string) => void;
+  bio: ProfessionalBio;
+  onChange: (bio: ProfessionalBio) => void;
 };
 
 type SectionMeta = { id: string; title: string; emoji: string };
@@ -98,14 +93,8 @@ function Toggle({
 const INPUT_CLASSES =
   "w-full rounded-xl border border-sb-border px-3.5 py-2.5 text-[14px] text-sb-text outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10";
 
-export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
-  const [bio, setBio] = useState<ProfessionalBio>(() => parseBio(initialBio));
+export function BioBuilder({ bio, onChange }: BioBuilderProps) {
   const [openSection, setOpenSection] = useState<string | null>("jobTypes");
-
-  useEffect(() => {
-    onChange(serializeBio(bio));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bio]);
 
   function toggleSection(id: string) {
     setOpenSection((prev) => (prev === id ? null : id));
@@ -118,31 +107,27 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
     >,
     value: string,
   ) {
-    setBio((prev) => {
-      const current = prev[key] as string[];
-      const next = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-      return { ...prev, [key]: next };
-    });
+    const current = bio[key] as string[];
+    const next = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    onChange({ ...bio, [key]: next });
   }
 
   function toggleDay(day: string) {
-    setBio((prev) => {
-      const days = prev.availability.days;
-      const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day];
-      return { ...prev, availability: { ...prev.availability, days: next } };
-    });
+    const days = bio.availability.days;
+    const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day];
+    onChange({ ...bio, availability: { ...bio.availability, days: next } });
   }
 
   function selectHour(hour: string) {
-    setBio((prev) => ({
-      ...prev,
+    onChange({
+      ...bio,
       availability: {
-        ...prev.availability,
-        hours: prev.availability.hours === hour ? "" : hour,
+        ...bio.availability,
+        hours: bio.availability.hours === hour ? "" : hour,
       },
-    }));
+    });
   }
 
   const sectionContent: Record<string, React.ReactNode> = {
@@ -192,13 +177,13 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
           <Toggle
             value={bio.availability.allowsUrgentCalls}
             onToggle={() =>
-              setBio((prev) => ({
-                ...prev,
+              onChange({
+                ...bio,
                 availability: {
-                  ...prev.availability,
-                  allowsUrgentCalls: !prev.availability.allowsUrgentCalls,
+                  ...bio.availability,
+                  allowsUrgentCalls: !bio.availability.allowsUrgentCalls,
                 },
-              }))
+              })
             }
           />
         </label>
@@ -212,13 +197,13 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
           <Toggle
             value={bio.guarantee.offersGuarantee}
             onToggle={() =>
-              setBio((prev) => ({
-                ...prev,
+              onChange({
+                ...bio,
                 guarantee: {
-                  ...prev.guarantee,
-                  offersGuarantee: !prev.guarantee.offersGuarantee,
+                  ...bio.guarantee,
+                  offersGuarantee: !bio.guarantee.offersGuarantee,
                 },
-              }))
+              })
             }
           />
         </label>
@@ -226,10 +211,10 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
           <textarea
             value={bio.guarantee.details}
             onChange={(e) =>
-              setBio((prev) => ({
-                ...prev,
-                guarantee: { ...prev.guarantee, details: e.target.value },
-              }))
+              onChange({
+                ...bio,
+                guarantee: { ...bio.guarantee, details: e.target.value },
+              })
             }
             placeholder="Ej: Garantía de 3 meses en mano de obra para instalaciones."
             rows={2}
@@ -276,10 +261,10 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
             <Toggle
               value={bio.license.isLicensed}
               onToggle={() =>
-                setBio((prev) => ({
-                  ...prev,
-                  license: { ...prev.license, isLicensed: !prev.license.isLicensed },
-                }))
+                onChange({
+                  ...bio,
+                  license: { ...bio.license, isLicensed: !bio.license.isLicensed },
+                })
               }
             />
           </label>
@@ -289,10 +274,10 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
                 type="text"
                 value={bio.license.number}
                 onChange={(e) =>
-                  setBio((prev) => ({
-                    ...prev,
-                    license: { ...prev.license, number: e.target.value },
-                  }))
+                  onChange({
+                    ...bio,
+                    license: { ...bio.license, number: e.target.value },
+                  })
                 }
                 placeholder="N.º de matrícula o registro"
                 className={INPUT_CLASSES}
@@ -301,10 +286,10 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
                 type="text"
                 value={bio.license.entity}
                 onChange={(e) =>
-                  setBio((prev) => ({
-                    ...prev,
-                    license: { ...prev.license, entity: e.target.value },
-                  }))
+                  onChange({
+                    ...bio,
+                    license: { ...bio.license, entity: e.target.value },
+                  })
                 }
                 placeholder="Entidad habilitante (ej: Enargas, INTI...)"
                 className={INPUT_CLASSES}
@@ -319,7 +304,7 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
           <Toggle
             value={bio.hasInsurance}
             onToggle={() =>
-              setBio((prev) => ({ ...prev, hasInsurance: !prev.hasInsurance }))
+              onChange({ ...bio, hasInsurance: !bio.hasInsurance })
             }
           />
         </label>
@@ -357,10 +342,10 @@ export function BioBuilder({ initialBio, onChange }: BioBuilderProps) {
         <textarea
           value={bio.freeText}
           onChange={(e) =>
-            setBio((prev) => ({
-              ...prev,
+            onChange({
+              ...bio,
               freeText: e.target.value.slice(0, 500),
-            }))
+            })
           }
           rows={4}
           maxLength={500}

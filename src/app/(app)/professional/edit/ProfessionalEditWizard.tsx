@@ -11,6 +11,7 @@ import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager
 import { BioBuilder } from "@/components/shared/BioBuilder";
 import { Spinner } from "@/components/ui/Spinner";
 import { useServerAction } from "@/lib/hooks/useServerAction";
+import { ProfessionalBio, parseBio, serializeBio } from "@/lib/bioTypes";
 
 type Tab = "info" | "trades" | "coverage" | "photos";
 
@@ -55,7 +56,7 @@ export function ProfessionalEditWizard({
   const [formError, setFormError] = useState<string | null>(null);
 
   // --- Información tab ---
-  const [bio, setBio] = useState(profile.bio ?? "");
+  const [bioState, setBioState] = useState<ProfessionalBio>(() => parseBio(profile.bio));
   const [contactPhone, setContactPhone] = useState(
     profile.contactPhone ?? "",
   );
@@ -200,7 +201,7 @@ export function ProfessionalEditWizard({
     }
     setFormError(null);
     submitChanges({
-      bio: bio || undefined,
+      bio: serializeBio(bioState),
       contactPhone,
       primaryTradeId: primaryTrade.tradeId,
       primaryYearsExperience: primaryTrade.yearsExperience || undefined,
@@ -266,7 +267,7 @@ export function ProfessionalEditWizard({
               <p className="mb-2 text-[13px] font-medium text-sb-muted">
                 Descripción
               </p>
-              <BioBuilder initialBio={profile.bio} onChange={setBio} />
+              <BioBuilder bio={bioState} onChange={setBioState} />
             </div>
 
             <div>
