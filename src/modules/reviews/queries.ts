@@ -411,6 +411,107 @@ export async function getWorkRecordForNewReviewPage(
   };
 }
 
+export type PendingClaimForProfessional = {
+  workRecordId: string;
+  clientName: string;
+  tradeName: string;
+  contactDate: Date;
+  claimCreatedAt: Date;
+};
+
+export async function getPendingClaimsForProfessional(
+  professionalId: string,
+): Promise<PendingClaimForProfessional[]> {
+  const workRecords = await prisma.workRecord.findMany({
+    where: {
+      professionalId,
+      status: "pending_pro_confirmation",
+      initiatedBy: "client",
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      createdAt: true,
+      client: { select: { fullName: true } },
+      trade: { select: { name: true } },
+      contactEvent: { select: { createdAt: true } },
+    },
+  });
+
+  return workRecords.map((wr) => ({
+    workRecordId: wr.id,
+    clientName: wr.client.fullName,
+    tradeName: wr.trade.name,
+    contactDate: wr.contactEvent.createdAt,
+    claimCreatedAt: wr.createdAt,
+  }));
+}
+
+export async function getPendingClaimsForProfessionalCount(
+  professionalId: string,
+): Promise<number> {
+  return prisma.workRecord.count({
+    where: {
+      professionalId,
+      status: "pending_pro_confirmation",
+      initiatedBy: "client",
+    },
+  });
+}
+
+export type PendingClaimDetail = {
+  workRecordId: string;
+  professionalId: string;
+  clientName: string;
+  tradeName: string;
+  contactDate: Date;
+  claimCreatedAt: Date;
+};
+
+export async function getPendingClaimDetail(
+  workRecordId: string,
+  professionalId: string,
+): Promise<PendingClaimDetail | null> {
+  const wr = await prisma.workRecord.findUnique({
+    where: { id: workRecordId },
+    select: {
+      id: true,
+      status: true,
+      initiatedBy: true,
+      professionalId: true,
+      createdAt: true,
+      client: { select: { fullName: true } },
+      trade: { select: { name: true } },
+      contactEvent: { select: { createdAt: true } },
+    },
+  });
+
+  if (!wr || wr.professionalId !== professionalId) return null;
+  if (wr.status !== "pending_pro_confirmation" || wr.initiatedBy !== "client") return null;
+
+  return {
+    workRecordId: wr.id,
+    professionalId: wr.professionalId,
+    clientName: wr.client.fullName,
+    tradeName: wr.trade.name,
+    contactDate: wr.contactEvent.createdAt,
+    claimCreatedAt: wr.createdAt,
+  };
+}
+
+export async function getPendingContactReviewsForClientCount(userId: string): Promise<number> {
+  const minAgo = new Date(Date.now() - REVIEW_CONTACT_MIN_HOURS * 60 * 60 * 1000);
+  const maxAgo = new Date(Date.now() - REVIEW_CONTACT_MAX_DAYS * 24 * 60 * 60 * 1000);
+
+  return prisma.contactEvent.count({
+    where: {
+      clientId: userId,
+      createdAt: { lte: minAgo, gte: maxAgo },
+      workRecords: { none: { status: { not: "cancelled" } } },
+    },
+  });
+}
+
 // Todos los work_records disputados (para la vista admin).
 export async function getDisputedWorkRecords() {
   return prisma.workRecord.findMany({

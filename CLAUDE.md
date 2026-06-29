@@ -430,6 +430,10 @@ NEXT_PUBLIC_APP_URL=
 
 19. **Toda constante numérica de negocio vive en `src/lib/config.ts`.** Esto incluye ventanas de tiempo, pesos de score, límites de rate, thresholds de triggers y factores de ranking. No hardcodear esos valores en ningún otro archivo. Ver `docs/review-system-decisions-v2.md §13` para la lista completa y sus justificaciones.
 
+20. **`getContactEventDetails` vive en `src/modules/contacts/queries.ts`**, aunque lo consumen páginas del módulo de reseñas. La razón: el objeto que devuelve es un contact event con info del profesional — esa semántica pertenece al dominio de contacts, no al de reviews.
+
+21. **En App Router, segmentos estáticos y dinámicos al mismo nivel coexisten sin conflicto.** Por ejemplo, `/reviews/contact/page.tsx` (lista) y `/reviews/contact/[contactEventId]/page.tsx` (formulario) son rutas distintas que Next.js resuelve correctamente. Esto permite tener páginas de lista e índice junto a sus rutas dinámicas individuales sin necesidad de reorganizar la carpeta.
+
 ---
 
 ## Lo que NO existe en Fase 1

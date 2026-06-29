@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { WorkRecordStatus } from "@/modules/reviews/types";
+import {
+  WORK_RECORD_CLIENT_CLAIM_MIN_DAYS,
+  WORK_RECORD_CLIENT_CLAIM_MAX_DAYS,
+} from "@/lib/config";
 
 export type ContactForReview = {
   contactEventId: string;
@@ -109,6 +113,136 @@ export async function getContactEventsCountForProfessionalSince(
   return prisma.contactEvent.count({
     where: { professionalId, createdAt: { gte: since } },
   });
+}
+
+export type ClaimableContactForClient = {
+  contactEventId: string;
+  professionalName: string;
+  professionalSlug: string;
+  professionalId: string;
+  contactDate: Date;
+  availableTrades: Array<{ id: string; name: string }>;
+};
+
+export async function getClaimableContactsForClient(
+  userId: string,
+): Promise<ClaimableContactForClient[]> {
+  const minDate = new Date(
+    Date.now() - WORK_RECORD_CLIENT_CLAIM_MAX_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const maxDate = new Date(
+    Date.now() - WORK_RECORD_CLIENT_CLAIM_MIN_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  const contactEvents = await prisma.contactEvent.findMany({
+    where: {
+      clientId: userId,
+      createdAt: { gte: minDate, lte: maxDate },
+      workRecords: { none: { status: { not: "cancelled" } } },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      createdAt: true,
+      professional: {
+        select: {
+          id: true,
+          slug: true,
+          user: { select: { fullName: true } },
+          professionalTrades: {
+            where: { trade: { isActive: true } },
+            select: { trade: { select: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  return contactEvents.map((ce) => ({
+    contactEventId: ce.id,
+    professionalName: ce.professional.user.fullName,
+    professionalSlug: ce.professional.slug,
+    professionalId: ce.professional.id,
+    contactDate: ce.createdAt,
+    availableTrades: ce.professional.professionalTrades.map((pt) => ({
+      id: pt.trade.id,
+      name: pt.trade.name,
+    })),
+  }));
+}
+
+export async function getClaimableContactsForClientCount(userId: string): Promise<number> {
+  const minDate = new Date(
+    Date.now() - WORK_RECORD_CLIENT_CLAIM_MAX_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const maxDate = new Date(
+    Date.now() - WORK_RECORD_CLIENT_CLAIM_MIN_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  return prisma.contactEvent.count({
+    where: {
+      clientId: userId,
+      createdAt: { gte: minDate, lte: maxDate },
+      workRecords: { none: { status: { not: "cancelled" } } },
+    },
+  });
+}
+
+export type ContactEventDetails = {
+  id: string;
+  clientId: string;
+  createdAt: Date;
+  professionalName: string;
+  professionalSlug: string;
+  professionalId: string;
+  availableTrades: Array<{ id: string; name: string }>;
+  hasActiveWorkRecord: boolean;
+};
+
+export async function getContactEventDetails(
+  contactEventId: string,
+  userId: string,
+): Promise<ContactEventDetails | null> {
+  const ce = await prisma.contactEvent.findUnique({
+    where: { id: contactEventId },
+    select: {
+      id: true,
+      clientId: true,
+      createdAt: true,
+      professional: {
+        select: {
+          id: true,
+          slug: true,
+          user: { select: { fullName: true } },
+          professionalTrades: {
+            where: { trade: { isActive: true } },
+            select: { trade: { select: { id: true, name: true } } },
+          },
+        },
+      },
+      workRecords: {
+        where: { status: { not: "cancelled" } },
+        select: { id: true },
+        take: 1,
+      },
+    },
+  });
+
+  if (!ce || ce.clientId !== userId) return null;
+
+  return {
+    id: ce.id,
+    clientId: ce.clientId,
+    createdAt: ce.createdAt,
+    professionalName: ce.professional.user.fullName,
+    professionalSlug: ce.professional.slug,
+    professionalId: ce.professional.id,
+    availableTrades: ce.professional.professionalTrades.map((pt) => ({
+      id: pt.trade.id,
+      name: pt.trade.name,
+    })),
+    hasActiveWorkRecord: ce.workRecords.length > 0,
+  };
 }
 
 export async function checkUserHadContact(
