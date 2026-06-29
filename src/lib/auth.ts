@@ -88,12 +88,16 @@ export const auth = betterAuth({
           },
         },
       },
-      sendOTP: async ({ phoneNumber, code }) => {
-        await twilioClient.messages.create({
-          body: `Tu código de verificación SUPERBOB es: ${code}`,
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: phoneNumber,
-        });
+      sendOTP: async ({ phoneNumber }) => {
+        await twilioClient.verify.v2
+          .services(process.env.TWILIO_VERIFY_SERVICE_SID!)
+          .verifications.create({ to: phoneNumber, channel: "sms" });
+      },
+      verifyOTP: async ({ phoneNumber, code }) => {
+        const check = await twilioClient.verify.v2
+          .services(process.env.TWILIO_VERIFY_SERVICE_SID!)
+          .verificationChecks.create({ to: phoneNumber, code });
+        return check.status === "approved";
       },
       callbackOnVerification: async ({ phoneNumber, user }) => {
         await prisma.user.update({
