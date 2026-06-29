@@ -45,14 +45,14 @@ import {
   ResolveDisputeSchema,
 } from "./types";
 
-// Verifica que el usuario tenga el teléfono verificado. Retorna mensaje de error o null.
-async function assertPhoneVerified(userId: string): Promise<string | null> {
+// Verifica que el usuario tenga el email verificado. Retorna mensaje de error o null.
+async function assertEmailVerified(userId: string): Promise<string | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { phoneVerifiedAt: true },
+    select: { emailVerified: true },
   });
-  if (!user?.phoneVerifiedAt) {
-    return "Necesitás verificar tu teléfono para realizar esta acción";
+  if (!user?.emailVerified) {
+    return "Necesitás verificar tu email para realizar esta acción. Revisá tu casilla de correo.";
   }
   return null;
 }
@@ -196,7 +196,7 @@ export async function createClientClaimAction(
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { error: "Necesitás iniciar sesión" };
 
-  const phoneError = await assertPhoneVerified(session.user.id);
+  const phoneError = await assertEmailVerified(session.user.id);
   if (phoneError) return { error: phoneError };
 
   const parsed = CreateClientClaimSchema.safeParse(input);
@@ -343,7 +343,7 @@ export async function submitWorkReviewAction(
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { error: "Necesitás iniciar sesión" };
 
-  const phoneError = await assertPhoneVerified(session.user.id);
+  const phoneError = await assertEmailVerified(session.user.id);
   if (phoneError) return { error: phoneError };
 
   const parsed = SubmitWorkReviewSchema.safeParse(input);
@@ -437,7 +437,7 @@ export async function submitContactReviewAction(
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { error: "Necesitás iniciar sesión" };
 
-  const phoneError = await assertPhoneVerified(session.user.id);
+  const phoneError = await assertEmailVerified(session.user.id);
   if (phoneError) return { error: phoneError };
 
   const parsed = SubmitContactReviewSchema.safeParse(input);

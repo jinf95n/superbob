@@ -25,10 +25,19 @@ export default function WelcomePage() {
           ¡Bienvenido a SUPERBOB!
         </h1>
 
-        <p className="mb-8 text-base text-white/80">
+        <p className="mb-6 text-base text-white/80">
           Tu cuenta está lista. Ya podés buscar profesionales de confianza en
           tu zona.
         </p>
+
+        <div className="mb-8 flex items-start gap-3 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-left">
+          <span className="mt-0.5 flex-shrink-0 text-lg">📧</span>
+          <p className="text-sm text-white/90">
+            <span className="font-semibold">Verificá tu email</span> para poder
+            contactar profesionales y dejar reseñas. Revisá tu casilla de
+            correo y hacé click en el link que te enviamos.
+          </p>
+        </div>
 
         <div className="mb-10 flex flex-col gap-3">
           {VALUE_POINTS.map((item) => (

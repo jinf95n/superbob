@@ -17,8 +17,8 @@ export async function getUserAccountProfile(
     select: {
       fullName: true,
       email: true,
+      emailVerified: true,
       phone: true,
-      phoneVerifiedAt: true,
       avatarUrl: true,
       createdAt: true,
     },

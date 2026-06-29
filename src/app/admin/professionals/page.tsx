@@ -21,8 +21,6 @@ export default async function AdminProfessionalsPage({
         ? rawParams.departmentId
         : undefined,
     active: typeof rawParams.active === "string" ? rawParams.active : undefined,
-    verified:
-      typeof rawParams.verified === "string" ? rawParams.verified : undefined,
     page: typeof rawParams.page === "string" ? rawParams.page : undefined,
   });
 
@@ -37,7 +35,6 @@ export default async function AdminProfessionalsPage({
     if (parsed.tradeId) params.set("tradeId", parsed.tradeId);
     if (parsed.departmentId) params.set("departmentId", parsed.departmentId);
     if (parsed.active) params.set("active", parsed.active);
-    if (parsed.verified) params.set("verified", parsed.verified);
     params.set("page", String(page));
     return `/admin/professionals?${params.toString()}`;
   };
@@ -79,27 +76,15 @@ export default async function AdminProfessionalsPage({
           ))}
         </select>
 
-        <div className="grid grid-cols-2 gap-3 sm:contents">
-          <select
-            name="active"
-            defaultValue={parsed.active ?? ""}
-            className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
-          >
-            <option value="">Activo: todos</option>
-            <option value="yes">Activos</option>
-            <option value="no">Inactivos</option>
-          </select>
-
-          <select
-            name="verified"
-            defaultValue={parsed.verified ?? ""}
-            className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
-          >
-            <option value="">Verificado: todos</option>
-            <option value="yes">Verificados</option>
-            <option value="no">No verificados</option>
-          </select>
-        </div>
+        <select
+          name="active"
+          defaultValue={parsed.active ?? ""}
+          className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
+        >
+          <option value="">Activo: todos</option>
+          <option value="yes">Activos</option>
+          <option value="no">Inactivos</option>
+        </select>
 
         <button
           type="submit"

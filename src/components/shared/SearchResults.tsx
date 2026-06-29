@@ -457,7 +457,7 @@ function FiltersPanel({
         onChange={(value) => update("minProfileScore", value)}
       />
 
-      <div>
+      {/* <div>
         <p className="text-[13px] font-semibold uppercase tracking-[0.05em] text-sb-text">
           Solo perfiles verificados
         </p>
@@ -481,7 +481,7 @@ function FiltersPanel({
             />
           </button>
         </div>
-      </div>
+      </div>*/}
 
       {hasActiveFilters && (
         <button

@@ -17,28 +17,10 @@ export const LoginSchema = z.object({
   password: z.string().min(1, "Ingresá tu contraseña"),
 });
 
-export const SendPhoneOtpSchema = z.object({
-  phoneNumber: z
-    .string()
-    .regex(/^\+\d{8,15}$/, "Usá formato internacional, ej: +5491122334455"),
-});
-
-export const VerifyPhoneOtpSchema = z.object({
-  phoneNumber: z
-    .string()
-    .regex(/^\+\d{8,15}$/, "Usá formato internacional, ej: +5491122334455"),
-  code: z.string().length(6, "El código tiene 6 dígitos"),
-});
-
 export type AuthActionState = {
   error?: string;
   success?: boolean;
   redirectTo?: string;
-};
-
-export type PhoneOtpActionState = {
-  error?: string;
-  success?: boolean;
 };
 
 export const UpdateUserProfileSchema = z.object({
@@ -74,11 +56,22 @@ export type PasswordResetActionState = {
 export type UserAccountProfile = {
   fullName: string;
   email: string;
+  emailVerified: boolean;
   phone: string | null;
-  phoneVerifiedAt: Date | null;
   avatarUrl: string | null;
   createdAt: Date;
 };
+
+export const UpdatePhoneSchema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .regex(/^[\d\s\+\-\(\)]+$/, "Solo números, espacios y +/-/()")
+    .min(8, "Ingresá un número de teléfono válido")
+    .max(20)
+    .optional()
+    .or(z.literal("")),
+});
 
 export type UserProfileStats = {
   contactsCount: number;
