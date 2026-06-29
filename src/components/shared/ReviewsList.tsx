@@ -112,7 +112,7 @@ export function ReviewsList({
             )}
             <div className="mt-2 flex items-center justify-between gap-3">
               <span className="inline-flex items-center rounded-full bg-sb-success/10 px-2.5 py-0.5 text-[12px] font-medium text-sb-success">
-                {review.workRecordType === "completed"
+                {review.reviewType === "work_review"
                   ? "Trabajo verificado en plataforma"
                   : "Contacto verificado"}
               </span>

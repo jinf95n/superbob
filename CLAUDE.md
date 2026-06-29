@@ -401,7 +401,7 @@ NEXT_PUBLIC_APP_URL=
 
 5. **El límite de 10 fotos por profesional se valida en la Server Action de `photos`.** No confiar en validación del cliente.
 
-6. **La lógica de publicación de reseñas double-blind es crítica.** `published_at` solo se setea cuando: (a) ambas partes enviaron su reseña, o (b) pasaron 14 días desde `submitted_at`. Esta lógica vive en `src/modules/reviews/actions.ts` y no se simplifica.
+6. **La lógica de publicación de reseñas double-blind es crítica.** `published_at` solo se setea cuando: (a) ambas partes enviaron su reseña, o (b) pasaron `REVIEW_BLIND_DAYS` días desde `submitted_at` (constante en `src/lib/config.ts`). Esta lógica vive en `src/modules/reviews/actions.ts` y no se simplifica.
 
 7. **El campo `is_primary` en `professional_trades` es único por profesional.** Al asignar un nuevo oficio primario, primero desactivar el anterior en la misma transacción de Prisma.
 
@@ -412,9 +412,9 @@ NEXT_PUBLIC_APP_URL=
 10. **Los componentes en `src/components/ui/` son primitivos sin lógica de negocio.** Si un componente necesita llamar a Prisma o a un módulo, pertenece a `src/components/shared/` o directamente a la página.
 
 11. Peso de reseñas en el score del profesional:
-work_review tiene peso 100% y contact_review tiene peso 30%. El score visible del profesional es el promedio ponderado de ambos tipos. Esta lógica vive en src/modules/reviews/queries.ts y no se cambia sin decisión explícita del producto.
+`REVIEW_WEIGHT_WORK` (1.0) y `REVIEW_WEIGHT_CONTACT` (0.3), ambas constantes en `src/lib/config.ts`. El score visible del profesional es el promedio ponderado de ambos tipos. Esta lógica vive en `src/modules/reviews/queries.ts` y no se cambia sin decisión explícita del producto.
 
-12. El ranking público por oficio y departamento se calcula en tiempo real desde la tabla reviews usando el score ponderado (work_review 100%, contact_review 30%). No se cachea en Fase 1. Se muestra en la página de búsqueda y en cada página de oficio por zona.
+12. El ranking público por oficio y departamento se calcula en tiempo real desde la tabla reviews usando el score ponderado (`REVIEW_WEIGHT_WORK` / `REVIEW_WEIGHT_CONTACT`). No se cachea en Fase 1. Se muestra en la página de búsqueda y en cada página de oficio por zona.
 
 13. **No hardcodear colores hex en componentes.** Usar siempre las clases Tailwind del sistema de diseño (`sb-blue`, `sb-orange`, etc.) o las clases semánticas de estado (`sb-success`, `sb-error`, `sb-warning`). Los valores hex viven únicamente en `tailwind.config.ts`.
 
@@ -427,6 +427,8 @@ work_review tiene peso 100% y contact_review tiene peso 30%. El score visible de
 17. **Colores dinámicos por oficio: nunca usar clases Tailwind dinámicas.** Las clases generadas en runtime (ej. `` `bg-${slug}-500` ``) no son incluidas por Tailwind en el build. Para colorear por oficio, usar siempre `style={{ backgroundColor: getTradeColor(slug) }}` con la función del archivo `src/lib/tradeColors.ts`.
 
 18. **En Zod, no usar `z.preprocess(emptyToUndefined, ...)`.** Este patrón oculta el error real del campo detrás del error del wrapper, dificultando el debugging. Usar `z.string().min(1).optional()` en su lugar.
+
+19. **Toda constante numérica de negocio vive en `src/lib/config.ts`.** Esto incluye ventanas de tiempo, pesos de score, límites de rate, thresholds de triggers y factores de ranking. No hardcodear esos valores en ningún otro archivo. Ver `docs/review-system-decisions-v2.md §13` para la lista completa y sus justificaciones.
 
 ---
 
@@ -450,10 +452,133 @@ No implementar, no mencionar, no crear tablas para:
 | Archivo | Contenido |
 |---|---|
 | `CLAUDE.md` | Este archivo — arquitectura y convenciones |
-| `docs/Schema.md` | Schema completo de base de datos v1.0 |
+| `docs/review-system-decisions-v2.md` | **Fuente de verdad** del sistema de reseñas — reemplaza `docs/Schema.md` en todo lo relativo a reviews y work_records |
+| `docs/Schema.md` | Schema base de datos v1.0 (supersedido por review-system-decisions-v2.md para las tablas de reviews) |
+| `src/lib/config.ts` | Todas las constantes configurables de negocio |
 | `docs/Brief.md` | Visión del producto y propuesta de valor |
 | `docs/Roadmap.md` | Las 6 fases de evolución del producto |
 | `docs/Brand.md` | Identidad de marca, colores, tipografía, tono de voz |
+
+## Work records — modelo, máquina de estados y flujo
+
+### Iniciación dual
+
+Un `work_record` puede ser iniciado por cualquiera de las dos partes, siempre a partir de
+un `contact_event` existente (el cliente reveló el teléfono del profesional previamente):
+
+| `initiated_by` | Acción | Estado inicial |
+|---|---|---|
+| `professional` | `createProWorkRecordAction` | `active` |
+| `client` | `createClientClaimAction` | `pending_pro_confirmation` |
+
+El profesional registra un trabajo completado directamente (sin confirmación del cliente).
+El cliente inicia un reclamo cuando el profesional no lo registró, dentro de una ventana de
+`WORK_RECORD_CLIENT_CLAIM_MIN_DAYS`–`WORK_RECORD_CLIENT_CLAIM_MAX_DAYS` días del contacto.
+
+### Máquina de estados
+
+```
+                   [profesional crea]          [cliente crea reclamo]
+                         │                              │
+                         ▼                              ▼
+                      active ◄─── confirm ──── pending_pro_confirmation
+                         │                              │
+                 (review window)                   dispute │
+                         │                              │
+                         ▼                              ▼
+                     completed                       disputed
+                         │                              │
+                   (sin cambios                  (admin resuelve)
+                    de estado)                         / \
+                                          work_confirmed  claim_rejected
+                                               │          /  unresolved
+                                               ▼         ▼
+                                            active    cancelled
+                                               │
+                                           cancelled (si admin o timeout)
+```
+
+Seis estados posibles del campo `status` en `work_records`:
+- `pending_pro_confirmation` — reclamo iniciado por cliente, aguardando respuesta del profesional
+- `active` — trabajo registrado y activo; la ventana de review está abierta (`review_window_closes_at`)
+- `completed` — estado especial interno para los work_records creados automáticamente al enviar una `contact_review`
+- `cancelled` — work_record cerrado (disputa rechazada, no resuelta, o expirado)
+- `disputed` — el profesional disputó el reclamo del cliente; requiere intervención admin
+- (no existe `completed` como destino de un flujo normal de trabajo — en Fase 1 el estado permanece `active`)
+
+### Exclusividad mutua: contact_review vs work_review
+
+Por `contact_event_id`, solo puede existir UN tipo de review:
+
+- Si existe algún `work_record` con `status != 'cancelled'` para ese `contact_event_id` → solo
+  `work_review` es posible (a través del work_record).
+- Si NO existe ningún work_record no-cancelado → el cliente puede enviar una `contact_review`.
+
+Ambas rutas verifican este check ANTES de crear cualquier registro. La ventana para
+`contact_review` es `REVIEW_CONTACT_MIN_HOURS`–`REVIEW_CONTACT_MAX_DAYS` desde el
+`contact_event`. Una vez enviada la `contact_review`, se crea internamente un work_record
+con `status='completed'`, cerrando permanentemente la ventana para work_review.
+
+### Server Actions principales del flujo
+
+| Acción | Quién la llama | Qué hace |
+|---|---|---|
+| `createProWorkRecordAction` | Profesional | Crea work_record `active` desde contact_event |
+| `createClientClaimAction` | Cliente (phone verified) | Crea work_record `pending_pro_confirmation` |
+| `respondToWorkRecordAction` | Profesional | Confirma (→ `active`) o disputa (→ `disputed`) |
+| `submitWorkReviewAction` | Cliente (phone verified) | Review de trabajo; double-blind |
+| `submitContactReviewAction` | Cliente (phone verified) | Review de contacto; publica inmediato |
+| `resolveDisputeAction` | Admin | Resuelve disputa: `work_confirmed` \| `claim_rejected` \| `unresolved` |
+
+### UI pendiente para próxima sesión
+
+Las siguientes pantallas tienen lógica de backend implementada pero **no tienen UI todavía**:
+
+- **Cliente — iniciar reclamo**: formulario para `createClientClaimAction` (seleccionar contact_event + oficio). Ruta sugerida: `/reviews/claim/[contactEventId]`.
+- **Profesional — responder reclamo**: pantalla para `respondToWorkRecordAction` con opciones "Confirmar" / "Disputar". Ruta sugerida: `/professional/work-records/[workRecordId]`.
+- **Admin — resolver disputa**: vista con contexto del par (historial de disputas de ambas partes via `getDisputeContextForAdmin`) y botones para las 3 resoluciones posibles. Ruta sugerida: `/admin/disputes/[workRecordId]`.
+- **Cliente — contact_review**: formulario para `submitContactReviewAction` para contact_events elegibles (via `getPendingContactReviewsForClient`).
+
+---
+
+## Decisiones de implementación — review_system_v2
+
+### contact_review: se hospeda en un work_record 'completed' creado en transacción
+
+El modelo `Review` requiere `work_record_id` (no nullable). Cuando el cliente envía una
+`contact_review`, `submitContactReviewAction` crea internamente un `WorkRecord` con
+`status='completed'` e `initiatedBy='client'` en la misma transacción, sin mostrar este
+work_record al usuario. La exclusividad mutua se verifica ANTES de la transacción:
+si ya existe un work_record no-cancelado para el `contact_event_id`, se bloquea la
+contact_review. Esta decisión evita agregar una migración adicional para hacer nullable
+`work_record_id` en reviews.
+
+### Rate limiting en contact events es sincrónico
+
+El check de rate limit corre ANTES de retornar el teléfono en `revealPhoneAction`. Si se
+pusiera en `after()` sería asíncrono y no podría bloquear la respuesta. Los tres límites
+(par/30 días, usuario/día, usuario/semana) usan `Promise.all` para consultar en paralelo.
+
+### `resolveDisputeAction` vive en `reviews/actions.ts` (no en `admin/actions.ts`)
+
+La resolución de disputas es lógica del dominio `reviews` con un guard de rol admin,
+no una acción de administración genérica. Esto mantiene toda la máquina de estados de
+work_records en un solo lugar.
+
+### Función renombradas en reviews/queries.ts
+
+- `getPendingReviewsForClient` → `getPendingWorkReviewsForClient` (solo work_reviews)
+- `getPendingReviewsForProfessional` → `getPendingRatingsForProfessional` (ratings privados)
+- `getPendingReviewsForClientCount` → `getPendingWorkReviewsForClientCount`
+- Nueva: `getPendingContactReviewsForClient` — contact_events elegibles para contact_review
+
+### ProfessionalReviewForProfile: workRecordType → reviewType
+
+El campo `workRecordType: WorkRecordType` en `src/modules/professionals/types.ts` fue
+reemplazado por `reviewType: ReviewType`. El display en `ReviewsList.tsx` ahora usa
+`review.reviewType === "work_review"` en lugar de `review.workRecordType === "completed"`.
+
+---
 
 ## Gestión del conocimiento
 
