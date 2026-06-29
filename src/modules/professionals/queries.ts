@@ -90,13 +90,13 @@ export async function getAllProfessionalsForSearch(): Promise<
     getWeightedScores(professionalIds),
     prisma.workRecord.groupBy({
       by: ["professionalId"],
-      where: { professionalId: { in: professionalIds }, type: "completed" },
+      where: { professionalId: { in: professionalIds }, status: "completed" },
       _count: { _all: true },
     }),
   ]);
 
   const completedCountByProfessional = new Map(
-    completedCounts.map((row) => [row.professionalId, row._count._all]),
+    completedCounts.map((row) => [row.professionalId, row._count?._all ?? 0]),
   );
 
   return professionals.map((professional) => {
@@ -379,6 +379,7 @@ export async function getProfessionalProfileBySlug(
         take: MAX_PROFILE_REVIEWS_LOADED,
         select: {
           id: true,
+          type: true,
           rating: true,
           comment: true,
           publishedAt: true,
@@ -415,7 +416,7 @@ export async function getProfessionalProfileBySlug(
           by: ["tradeId"],
           where: {
             professionalId: professional.id,
-            type: "completed",
+            status: "completed",
             tradeId: { in: tradeIds },
           },
           _count: { _all: true },
@@ -423,7 +424,7 @@ export async function getProfessionalProfileBySlug(
       : Promise.resolve([]),
     getWeightedScores([professional.id]),
     prisma.workRecord.count({
-      where: { professionalId: professional.id, type: "completed" },
+      where: { professionalId: professional.id, status: "completed" },
     }),
     prisma.review.groupBy({
       by: ["rating"],
@@ -437,7 +438,7 @@ export async function getProfessionalProfileBySlug(
   ]);
 
   const completedByTradeMap = new Map(
-    completedByTrade.map((row) => [row.tradeId, row._count._all]),
+    completedByTrade.map((row) => [row.tradeId, row._count?._all ?? 0]),
   );
 
   const trades: ProfessionalTradeForProfile[] = professional.professionalTrades
@@ -853,7 +854,7 @@ export async function getProfessionalBadges(
     }),
     prisma.workRecord.findMany({
       where: { professionalId },
-      select: { clientId: true, type: true },
+      select: { clientId: true, status: true },
     }),
   ]);
 
@@ -906,7 +907,7 @@ export async function getProfessionalBadges(
   }
 
   const completedCount = workRecords.filter(
-    (record) => record.type === "completed",
+    (record) => record.status === "completed",
   ).length;
   if (completedCount >= HUNDRED_JOBS_THRESHOLD) {
     badges.push({ id: "100-jobs", label: "100 trabajos" });

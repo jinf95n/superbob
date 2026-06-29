@@ -6,10 +6,13 @@ import { getProfessionalProfileIdByUserId } from "@/modules/professionals/querie
 import {
   getContactEventsCountForProfessionalSince,
   getPendingContactsCount,
+  getClaimableContactsForClientCount,
 } from "@/modules/contacts/queries";
 import {
   getPendingWorkReviewsForClientCount,
   getPendingReviewsToRespondCount,
+  getPendingContactReviewsForClientCount,
+  getPendingClaimsForProfessionalCount,
 } from "@/modules/reviews/queries";
 import { getUserRole } from "@/modules/users/queries";
 
@@ -28,23 +31,36 @@ export default async function DashboardPage() {
     ? await getProfessionalProfileIdByUserId(session.user.id)
     : null;
 
-  const [contactEvents30d, pendingReviews, pendingContacts, pendingClientReviews] =
-    professionalId
-      ? await Promise.all([
-          getContactEventsCountForProfessionalSince(
-            professionalId,
-            new Date(Date.now() - THIRTY_DAYS_MS),
-          ),
-          getPendingReviewsToRespondCount(professionalId),
-          getPendingContactsCount(professionalId),
-          Promise.resolve(0),
-        ])
-      : await Promise.all([
-          Promise.resolve(0),
-          Promise.resolve(0),
-          Promise.resolve(0),
-          session ? getPendingWorkReviewsForClientCount(session.user.id) : Promise.resolve(0),
-        ]);
+  const [
+    contactEvents30d,
+    pendingReviews,
+    pendingContacts,
+    pendingClientWorkReviews,
+    pendingContactReviews,
+    claimableContacts,
+    pendingClaims,
+  ] = professionalId
+    ? await Promise.all([
+        getContactEventsCountForProfessionalSince(
+          professionalId,
+          new Date(Date.now() - THIRTY_DAYS_MS),
+        ),
+        getPendingReviewsToRespondCount(professionalId),
+        getPendingContactsCount(professionalId),
+        Promise.resolve(0),
+        Promise.resolve(0),
+        Promise.resolve(0),
+        getPendingClaimsForProfessionalCount(professionalId),
+      ])
+    : await Promise.all([
+        Promise.resolve(0),
+        Promise.resolve(0),
+        Promise.resolve(0),
+        session ? getPendingWorkReviewsForClientCount(session.user.id) : Promise.resolve(0),
+        session ? getPendingContactReviewsForClientCount(session.user.id) : Promise.resolve(0),
+        session ? getClaimableContactsForClientCount(session.user.id) : Promise.resolve(0),
+        Promise.resolve(0),
+      ]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -55,6 +71,23 @@ export default async function DashboardPage() {
       <div className="mt-6 flex flex-col gap-4">
         {professionalId ? (
           <>
+            {pendingClaims > 0 && (
+              <Link
+                href="/professional/reviews"
+                className="flex items-center justify-between rounded-2xl border border-sb-warning/30 bg-sb-warning/5 p-4"
+              >
+                <div>
+                  <p className="text-[15px] font-semibold text-sb-warning">
+                    {pendingClaims} reclamo{pendingClaims === 1 ? "" : "s"} pendiente{pendingClaims === 1 ? "" : "s"}
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-sb-muted">
+                    Un cliente inició un reclamo de trabajo. Respondé antes de que venza el plazo.
+                  </p>
+                </div>
+                <span className="ml-3 shrink-0 text-sb-warning">→</span>
+              </Link>
+            )}
+
             {pendingContacts > 0 && (
               <Link
                 href="/professional/reviews"
@@ -107,20 +140,54 @@ export default async function DashboardPage() {
           </>
         ) : (
           <>
-            {pendingClientReviews > 0 && (
+            {pendingClientWorkReviews > 0 && (
               <Link
                 href="/notifications"
                 className="flex items-center justify-between rounded-2xl bg-sb-card-orange p-4"
               >
                 <div>
                   <p className="text-[15px] font-semibold text-sb-orange">
-                    {pendingClientReviews} reseña{pendingClientReviews === 1 ? "" : "s"} pendiente{pendingClientReviews === 1 ? "" : "s"}
+                    {pendingClientWorkReviews} reseña{pendingClientWorkReviews === 1 ? "" : "s"} de trabajo pendiente{pendingClientWorkReviews === 1 ? "" : "s"}
                   </p>
                   <p className="mt-0.5 text-[13px] text-sb-muted">
-                    Ayudá a otros calificando a los profesionales con los que trabajaste
+                    Calificá a los profesionales con los que trabajaste
                   </p>
                 </div>
                 <span className="ml-3 shrink-0 text-sb-orange">→</span>
+              </Link>
+            )}
+
+            {pendingContactReviews > 0 && (
+              <Link
+                href="/reviews/contact"
+                className="flex items-center justify-between rounded-2xl bg-sb-card-blue p-4"
+              >
+                <div>
+                  <p className="text-[15px] font-semibold text-sb-blue">
+                    {pendingContactReviews} reseña{pendingContactReviews === 1 ? "" : "s"} de contacto disponible{pendingContactReviews === 1 ? "" : "s"}
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-sb-muted">
+                    Calificá cómo te atendieron en el primer contacto
+                  </p>
+                </div>
+                <span className="ml-3 shrink-0 text-sb-blue">→</span>
+              </Link>
+            )}
+
+            {claimableContacts > 0 && (
+              <Link
+                href="/reviews/claim"
+                className="flex items-center justify-between rounded-2xl border border-sb-border bg-white p-4"
+              >
+                <div>
+                  <p className="text-[15px] font-semibold text-sb-text">
+                    {claimableContacts} trabajo{claimableContacts === 1 ? "" : "s"} sin registrar
+                  </p>
+                  <p className="mt-0.5 text-[13px] text-sb-muted">
+                    ¿El profesional no registró el trabajo? Podés iniciar un reclamo.
+                  </p>
+                </div>
+                <span className="ml-3 shrink-0 text-sb-muted">→</span>
               </Link>
             )}
 
