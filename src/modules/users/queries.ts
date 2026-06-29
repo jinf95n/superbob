@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma, Role } from "@prisma/client";
 import {
+  AccountDeletionBlocker,
   AdminUserListItem,
   AdminUserListParams,
   AdminUserListResult,
@@ -68,6 +69,46 @@ export async function getTotalUsersCount(): Promise<number> {
   return prisma.user.count();
 }
 
+export async function checkAccountDeletionBlockers(
+  userId: string,
+): Promise<AccountDeletionBlocker[]> {
+  const professionalProfile = await prisma.professionalProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+
+  if (!professionalProfile) {
+    return [];
+  }
+
+  const [disputedCount, pendingConfirmationCount] = await Promise.all([
+    prisma.workRecord.count({
+      where: { professionalId: professionalProfile.id, status: "disputed" },
+    }),
+    prisma.workRecord.count({
+      where: {
+        professionalId: professionalProfile.id,
+        status: "pending_pro_confirmation",
+      },
+    }),
+  ]);
+
+  const blockers: AccountDeletionBlocker[] = [];
+
+  if (disputedCount > 0) {
+    blockers.push({ type: "disputed_work_records", count: disputedCount });
+  }
+
+  if (pendingConfirmationCount > 0) {
+    blockers.push({
+      type: "pending_pro_confirmation_as_professional",
+      count: pendingConfirmationCount,
+    });
+  }
+
+  return blockers;
+}
+
 const ADMIN_USERS_PAGE_SIZE = 20;
 
 export async function getUsersForAdmin(
@@ -100,6 +141,7 @@ export async function getUsersForAdmin(
       phone: true,
       role: true,
       isActive: true,
+      deletedAt: true,
       createdAt: true,
       province: { select: { name: true } },
       department: { select: { name: true } },
@@ -113,6 +155,7 @@ export async function getUsersForAdmin(
     phone: row.phone,
     role: row.role,
     isActive: row.isActive,
+    deletedAt: row.deletedAt,
     createdAt: row.createdAt,
     provinceName: row.province?.name ?? null,
     departmentName: row.department?.name ?? null,

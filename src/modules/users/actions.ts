@@ -5,9 +5,10 @@ import { APIError } from "better-auth/api";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getUserRole } from "./queries";
+import { checkAccountDeletionBlockers, getUserRole } from "./queries";
 import {
   AuthActionState,
+  DeleteAccountResult,
   LoginSchema,
   PasswordResetActionState,
   PhoneOtpActionState,
@@ -290,4 +291,156 @@ export async function updateUserProfileAction(
   });
 
   return { success: true };
+}
+
+async function performAccountDeletion(
+  userId: string,
+): Promise<DeleteAccountResult> {
+  const blockers = await checkAccountDeletionBlockers(userId);
+  if (blockers.length > 0) {
+    return { blocked: true, blockers };
+  }
+
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    // Publicar reseñas pendientes antes de anonimizar
+    await tx.review.updateMany({
+      where: {
+        reviewerId: userId,
+        submittedAt: { not: null },
+        publishedAt: null,
+        withdrawnAt: null,
+        deletedAt: null,
+      },
+      data: { publishedAt: now },
+    });
+
+    const professionalProfile = await tx.professionalProfile.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+
+    // Cancelar work records activos del usuario (como cliente o profesional)
+    const workRecordsToCancel = await tx.workRecord.findMany({
+      where: {
+        status: { in: ["active", "pending_pro_confirmation"] },
+        OR: [
+          { clientId: userId },
+          ...(professionalProfile
+            ? [{ professionalId: professionalProfile.id }]
+            : []),
+        ],
+      },
+      select: {
+        id: true,
+        clientId: true,
+        professionalId: true,
+      },
+    });
+
+    if (workRecordsToCancel.length > 0) {
+      await tx.workRecord.updateMany({
+        where: { id: { in: workRecordsToCancel.map((wr) => wr.id) } },
+        data: { status: "cancelled" },
+      });
+
+      // Notificar a la otra parte de cada work record cancelado
+      for (const wr of workRecordsToCancel) {
+        if (wr.clientId === userId) {
+          // El usuario era el cliente → notificar al profesional
+          const prof = await tx.professionalProfile.findUnique({
+            where: { id: wr.professionalId },
+            select: { userId: true },
+          });
+          if (prof) {
+            await tx.notification.create({
+              data: {
+                userId: prof.userId,
+                type: "work_record_cancelled_account_deleted",
+                payload: { workRecordId: wr.id },
+              },
+            });
+          }
+        } else if (professionalProfile && wr.professionalId === professionalProfile.id) {
+          // El usuario era el profesional → notificar al cliente
+          await tx.notification.create({
+            data: {
+              userId: wr.clientId,
+              type: "work_record_cancelled_account_deleted",
+              payload: { workRecordId: wr.id },
+            },
+          });
+        }
+      }
+    }
+
+    // Anonimizar usuario (tombstone email para no violar la constraint unique)
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        fullName: "Usuario eliminado",
+        email: `deleted+${userId}@account.deleted`,
+        phone: null,
+        avatarUrl: null,
+        isActive: false,
+        deletedAt: now,
+      },
+    });
+
+    // Desactivar perfil profesional si existe
+    if (professionalProfile) {
+      await tx.professionalProfile.update({
+        where: { id: professionalProfile.id },
+        data: { isActive: false, deletedAt: now },
+      });
+    }
+
+    // Invalidar todas las sesiones activas
+    await tx.session.deleteMany({ where: { userId } });
+  });
+
+  return { success: true };
+}
+
+export async function deleteAccountAction(): Promise<DeleteAccountResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  return performAccountDeletion(session.user.id);
+}
+
+export async function adminDeleteAccountAction(
+  targetUserId: string,
+): Promise<DeleteAccountResult> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  const role = await getUserRole(session.user.id);
+  if (role !== "admin") {
+    return { error: "No tenés permisos para realizar esta acción" };
+  }
+
+  if (!targetUserId || targetUserId.length < 1) {
+    return { error: "ID de usuario inválido" };
+  }
+
+  const targetUser = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    select: { id: true, deletedAt: true },
+  });
+
+  if (!targetUser) {
+    return { error: "Usuario no encontrado" };
+  }
+
+  if (targetUser.deletedAt) {
+    return { error: "Esta cuenta ya fue eliminada" };
+  }
+
+  return performAccountDeletion(targetUserId);
 }
