@@ -575,3 +575,19 @@ contact_event (cliente revela teléfono)
 ---
 
 *Documento generado en sesión de diseño: junio 2026. Próxima revisión: cuando haya datos reales de uso.*
+
+
+## Ratio de conversión contactos → trabajos
+
+El ratio no es un trigger de revisión. Es contexto que el admin 
+ve únicamente cuando ya existe otra señal activa (disputa, reclamo, 
+trigger por patrón).
+
+Un profesional con 500 contactos y 12 work records puede estar 
+cobrando más caro, siendo muy selectivo, o trabajando en nichos 
+donde el cliente pide varios presupuestos antes de decidir. Eso 
+es legítimo y no genera ninguna alerta.
+
+El ratio aparece como dato adicional en la vista de detalle del 
+admin cuando ese perfil ya fue marcado por un trigger existente. 
+No aparece en la lista general de profesionales ni afecta el score.

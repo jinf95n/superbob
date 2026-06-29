@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 import { BioBuilder } from "@/components/shared/BioBuilder";
 import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager";
+import { ProfessionalBio, parseBio, serializeBio } from "@/lib/bioTypes";
 
 type SecondaryTradeRow = {
   tradeId: string;
@@ -34,7 +35,7 @@ export function OnboardingWizard({
   const [formError, setFormError] = useState<string | null>(null);
 
   // Paso 1
-  const [bio, setBio] = useState("");
+  const [bioState, setBioState] = useState<ProfessionalBio>(() => parseBio(null));
   const [contactPhone, setContactPhone] = useState("");
   const [contactPhoneError, setContactPhoneError] = useState<string | null>(
     null,
@@ -182,7 +183,7 @@ export function OnboardingWizard({
     setFormError(null);
 
     submitProfile({
-      bio: bio || undefined,
+      bio: serializeBio(bioState),
       contactPhone,
       primaryTradeId,
       primaryYearsExperience: primaryYearsExperience || undefined,
@@ -246,7 +247,7 @@ export function OnboardingWizard({
               Contanos sobre tu trabajo
             </label>
             <div className="mt-2">
-              <BioBuilder initialBio={null} onChange={setBio} />
+              <BioBuilder bio={bioState} onChange={setBioState} />
             </div>
           </div>
 
