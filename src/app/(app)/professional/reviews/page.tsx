@@ -8,7 +8,7 @@ import {
 } from "@/modules/professionals/queries";
 import { getProfessionalContactsForReview } from "@/modules/contacts/queries";
 import {
-  getPendingReviewsForProfessional,
+  getPendingRatingsForProfessional,
   getPublishedReviewsForProfessional,
 } from "@/modules/reviews/queries";
 import { Badge } from "@/components/ui/Badge";
@@ -31,7 +31,7 @@ export default async function ProfessionalReviewsPage() {
     await Promise.all([
       getProfessionalContactsForReview(professionalId),
       getProfessionalTradesForSelector(professionalId),
-      getPendingReviewsForProfessional(professionalId),
+      getPendingRatingsForProfessional(professionalId),
       getPublishedReviewsForProfessional(professionalId),
       getPrivateSuperbobScore(professionalId),
     ]);

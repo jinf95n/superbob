@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { submitClientReviewAction } from "@/modules/reviews/actions";
+import { submitWorkReviewAction } from "@/modules/reviews/actions";
 import { Button } from "@/components/ui/Button";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 
@@ -19,7 +19,7 @@ export function ClientReviewForm({ workRecordId }: ClientReviewFormProps) {
   const [ratingError, setRatingError] = useState<string | null>(null);
 
   const { execute, isPending, isSuccess, isError, error } = useServerAction(
-    submitClientReviewAction,
+    submitWorkReviewAction,
     {
       successDuration: SUCCESS_REDIRECT_DELAY_MS,
       onSuccess: () => {

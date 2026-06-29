@@ -1,17 +1,27 @@
 import { prisma } from "@/lib/prisma";
 import { ReviewType } from "@prisma/client";
 import {
+  REVIEW_WEIGHT_CONTACT,
+  REVIEW_WEIGHT_WORK,
+  REVIEW_BLIND_DAYS,
+  REVIEW_CONTACT_MIN_HOURS,
+  REVIEW_CONTACT_MAX_DAYS,
+} from "@/lib/config";
+import {
   ClientRatingForProfessional,
+  DisputeContextForAdmin,
+  PendingContactReviewForClient,
   PendingRatingForProfessional,
-  PendingReviewForClient,
+  PendingWorkReviewForClient,
   PublishedReviewForProfessional,
   WorkRecordForNewReviewPage,
   WorkRecordForReviewPage,
+  WorkRecordStatus,
 } from "./types";
 
 const REVIEW_TYPE_WEIGHTS: Record<ReviewType, number> = {
-  work_review: 1,
-  contact_review: 0.3,
+  work_review: REVIEW_WEIGHT_WORK,
+  contact_review: REVIEW_WEIGHT_CONTACT,
 };
 
 export type WeightedScore = {
@@ -21,21 +31,22 @@ export type WeightedScore = {
 
 /**
  * Score ponderado por profesional a partir de reseñas publicadas.
- * work_review pesa 100%, contact_review pesa 30% (regla #11 de CLAUDE.md).
- * No se cachea en Fase 1: se calcula en cada consulta.
+ * work_review pesa REVIEW_WEIGHT_WORK (1.0), contact_review pesa REVIEW_WEIGHT_CONTACT (0.3).
+ * Fuente de verdad: regla #11 de CLAUDE.md y src/lib/config.ts.
+ * No se cachea en Fase 1.
  */
 export async function getWeightedScores(
   professionalIds: string[],
   tradeId?: string,
 ): Promise<Map<string, WeightedScore>> {
-  if (professionalIds.length === 0) {
-    return new Map();
-  }
+  if (professionalIds.length === 0) return new Map();
 
   const reviews = await prisma.review.findMany({
     where: {
       reviewedProfessionalId: { in: professionalIds },
       publishedAt: { not: null },
+      suspendedAt: null,
+      deletedAt: null,
       ...(tradeId ? { tradeId } : {}),
     },
     select: { reviewedProfessionalId: true, type: true, rating: true },
@@ -48,9 +59,11 @@ export async function getWeightedScores(
 
   for (const review of reviews) {
     const weight = REVIEW_TYPE_WEIGHTS[review.type];
-    const entry =
-      totals.get(review.reviewedProfessionalId) ??
-      { weightedSum: 0, weightTotal: 0, reviewCount: 0 };
+    const entry = totals.get(review.reviewedProfessionalId) ?? {
+      weightedSum: 0,
+      weightTotal: 0,
+      reviewCount: 0,
+    };
     entry.weightedSum += review.rating * weight;
     entry.weightTotal += weight;
     entry.reviewCount += 1;
@@ -69,7 +82,6 @@ export async function getWeightedScores(
 }
 
 const ADMIN_REVIEWS_PAGE_SIZE = 20;
-const AUTO_PUBLISH_DAYS = 14;
 
 export type PendingReviewItem = {
   id: string;
@@ -91,13 +103,13 @@ export type PendingReviewsResult = {
 };
 
 export async function getPendingReviewsCount(): Promise<number> {
-  return prisma.review.count({ where: { publishedAt: null } });
+  return prisma.review.count({
+    where: { publishedAt: null, withdrawnAt: null, deletedAt: null },
+  });
 }
 
-export async function getPendingReviews(
-  page = 1,
-): Promise<PendingReviewsResult> {
-  const where = { publishedAt: null };
+export async function getPendingReviews(page = 1): Promise<PendingReviewsResult> {
+  const where = { publishedAt: null, withdrawnAt: null, deletedAt: null };
   const total = await prisma.review.count({ where });
   const totalPages = Math.max(1, Math.ceil(total / ADMIN_REVIEWS_PAGE_SIZE));
   const currentPage = Math.min(Math.max(page, 1), totalPages);
@@ -114,9 +126,7 @@ export async function getPendingReviews(
       submittedAt: true,
       createdAt: true,
       reviewer: { select: { fullName: true } },
-      reviewedProfessional: {
-        select: { user: { select: { fullName: true } } },
-      },
+      reviewedProfessional: { select: { user: { select: { fullName: true } } } },
     },
   });
 
@@ -129,55 +139,36 @@ export async function getPendingReviews(
     submittedAt: row.submittedAt,
     createdAt: row.createdAt,
     autoPublishAt: row.submittedAt
-      ? new Date(
-          row.submittedAt.getTime() + AUTO_PUBLISH_DAYS * 24 * 60 * 60 * 1000,
-        )
+      ? new Date(row.submittedAt.getTime() + REVIEW_BLIND_DAYS * 24 * 60 * 60 * 1000)
       : null,
   }));
 
-  return {
-    reviews,
-    total,
-    page: currentPage,
-    pageSize: ADMIN_REVIEWS_PAGE_SIZE,
-    totalPages,
-  };
+  return { reviews, total, page: currentPage, pageSize: ADMIN_REVIEWS_PAGE_SIZE, totalPages };
 }
 
-/**
- * Reseñas que el cliente ya envió (submittedAt) pero todavía no se
- * publicaron (publishedAt null) porque el profesional no respondió con su
- * propia calificación del cliente (ClientRating) para ese work_record.
- */
-export async function getPendingReviewsToRespondCount(
-  professionalId: string,
-): Promise<number> {
+export async function getPendingReviewsToRespondCount(professionalId: string): Promise<number> {
   const reviews = await prisma.review.findMany({
     where: {
       reviewedProfessionalId: professionalId,
       submittedAt: { not: null },
       publishedAt: null,
+      withdrawnAt: null,
+      deletedAt: null,
     },
     select: { workRecordId: true },
   });
 
-  if (reviews.length === 0) {
-    return 0;
-  }
+  if (reviews.length === 0) return 0;
 
-  const workRecordIds = reviews.map((review) => review.workRecordId);
+  const workRecordIds = reviews.map((r) => r.workRecordId);
 
   const rated = await prisma.clientRating.findMany({
-    where: {
-      workRecordId: { in: workRecordIds },
-      ratedByProfessionalId: professionalId,
-    },
+    where: { workRecordId: { in: workRecordIds }, ratedByProfessionalId: professionalId },
     select: { workRecordId: true },
   });
 
-  const ratedWorkRecordIds = new Set(rated.map((r) => r.workRecordId));
-
-  return workRecordIds.filter((id) => !ratedWorkRecordIds.has(id)).length;
+  const ratedIds = new Set(rated.map((r) => r.workRecordId));
+  return workRecordIds.filter((id) => !ratedIds.has(id)).length;
 }
 
 export async function getWorkRecordForReviewPage(
@@ -188,6 +179,7 @@ export async function getWorkRecordForReviewPage(
     select: {
       id: true,
       clientId: true,
+      status: true,
       createdAt: true,
       professional: { select: { user: { select: { fullName: true } } } },
       trade: { select: { name: true } },
@@ -195,9 +187,7 @@ export async function getWorkRecordForReviewPage(
     },
   });
 
-  if (!workRecord) {
-    return null;
-  }
+  if (!workRecord) return null;
 
   return {
     id: workRecord.id,
@@ -205,68 +195,112 @@ export async function getWorkRecordForReviewPage(
     tradeName: workRecord.trade.name,
     createdAt: workRecord.createdAt,
     clientId: workRecord.clientId,
+    status: workRecord.status as WorkRecordStatus,
     alreadyReviewed: workRecord.reviews.length > 0,
   };
 }
 
-/**
- * work_records del cliente todavía sin reseña enviada.
- */
-export async function getPendingReviewsForClient(
+// work_records en active/completed del cliente donde aún no envió ninguna reseña
+// (incluso retirada — el retiro bloquea el reenvío).
+export async function getPendingWorkReviewsForClient(
   userId: string,
-): Promise<PendingReviewForClient[]> {
+): Promise<PendingWorkReviewForClient[]> {
   const workRecords = await prisma.workRecord.findMany({
-    where: { clientId: userId, reviews: { none: {} } },
+    where: {
+      clientId: userId,
+      status: { in: ["active", "completed"] },
+      reviews: { none: { reviewerId: userId } },
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
-      type: true,
+      status: true,
       createdAt: true,
-      professional: {
-        select: { slug: true, user: { select: { fullName: true } } },
-      },
+      professional: { select: { slug: true, user: { select: { fullName: true } } } },
       trade: { select: { name: true } },
     },
   });
 
-  return workRecords.map((workRecord) => ({
-    workRecordId: workRecord.id,
-    professionalName: workRecord.professional.user.fullName,
-    professionalSlug: workRecord.professional.slug,
-    tradeName: workRecord.trade.name,
-    type: workRecord.type,
-    createdAt: workRecord.createdAt,
+  return workRecords.map((wr) => ({
+    workRecordId: wr.id,
+    professionalName: wr.professional.user.fullName,
+    professionalSlug: wr.professional.slug,
+    tradeName: wr.trade.name,
+    status: wr.status as WorkRecordStatus,
+    createdAt: wr.createdAt,
   }));
 }
 
-/**
- * work_records del profesional donde todavía no calificó al cliente
- * (ClientRating, privada).
- */
-export async function getPendingReviewsForProfessional(
+// contact_events elegibles para contact_review: sin work_record, dentro de la ventana temporal.
+export async function getPendingContactReviewsForClient(
+  userId: string,
+): Promise<PendingContactReviewForClient[]> {
+  const minAgo = new Date(Date.now() - REVIEW_CONTACT_MIN_HOURS * 60 * 60 * 1000);
+  const maxAgo = new Date(Date.now() - REVIEW_CONTACT_MAX_DAYS * 24 * 60 * 60 * 1000);
+
+  const contactEvents = await prisma.contactEvent.findMany({
+    where: {
+      clientId: userId,
+      createdAt: { lte: minAgo, gte: maxAgo },
+      workRecords: { none: { status: { not: "cancelled" } } },
+    },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      createdAt: true,
+      professional: {
+        select: {
+          id: true,
+          slug: true,
+          user: { select: { fullName: true } },
+          professionalTrades: {
+            where: { trade: { isActive: true } },
+            select: { trade: { select: { id: true, name: true } } },
+          },
+        },
+      },
+    },
+  });
+
+  return contactEvents.map((ce) => ({
+    contactEventId: ce.id,
+    professionalName: ce.professional.user.fullName,
+    professionalSlug: ce.professional.slug,
+    professionalId: ce.professional.id,
+    contactDate: ce.createdAt,
+    availableTrades: ce.professional.professionalTrades.map((pt) => ({
+      id: pt.trade.id,
+      name: pt.trade.name,
+    })),
+  }));
+}
+
+// work_records del profesional donde aún no calificó al cliente (ClientRating, privada).
+export async function getPendingRatingsForProfessional(
   professionalId: string,
 ): Promise<PendingRatingForProfessional[]> {
   const workRecords = await prisma.workRecord.findMany({
     where: {
       professionalId,
+      status: { in: ["active", "completed"] },
       clientRatings: { none: { ratedByProfessionalId: professionalId } },
     },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
-      type: true,
+      status: true,
       createdAt: true,
       client: { select: { fullName: true } },
       trade: { select: { name: true } },
     },
   });
 
-  return workRecords.map((workRecord) => ({
-    workRecordId: workRecord.id,
-    clientName: workRecord.client.fullName,
-    tradeName: workRecord.trade.name,
-    type: workRecord.type,
-    createdAt: workRecord.createdAt,
+  return workRecords.map((wr) => ({
+    workRecordId: wr.id,
+    clientName: wr.client.fullName,
+    tradeName: wr.trade.name,
+    status: wr.status as WorkRecordStatus,
+    createdAt: wr.createdAt,
   }));
 }
 
@@ -274,7 +308,12 @@ export async function getPublishedReviewsForProfessional(
   professionalId: string,
 ): Promise<PublishedReviewForProfessional[]> {
   const reviews = await prisma.review.findMany({
-    where: { reviewedProfessionalId: professionalId, publishedAt: { not: null } },
+    where: {
+      reviewedProfessionalId: professionalId,
+      publishedAt: { not: null },
+      suspendedAt: null,
+      deletedAt: null,
+    },
     orderBy: { publishedAt: "desc" },
     select: {
       id: true,
@@ -282,6 +321,8 @@ export async function getPublishedReviewsForProfessional(
       rating: true,
       comment: true,
       publishedAt: true,
+      responseText: true,
+      responsePublishedAt: true,
       reviewer: { select: { fullName: true } },
       trade: { select: { name: true } },
     },
@@ -295,14 +336,19 @@ export async function getPublishedReviewsForProfessional(
     rating: review.rating,
     comment: review.comment,
     publishedAt: review.publishedAt as Date,
+    responseText: review.responseText,
+    responsePublishedAt: review.responsePublishedAt,
   }));
 }
 
-export async function getPendingReviewsForClientCount(
-  userId: string,
-): Promise<number> {
+// Cuenta work_records activos/completados sin reseña del cliente (incluyendo retiradas).
+export async function getPendingWorkReviewsForClientCount(userId: string): Promise<number> {
   return prisma.workRecord.count({
-    where: { clientId: userId, reviews: { none: {} } },
+    where: {
+      clientId: userId,
+      status: { in: ["active", "completed"] },
+      reviews: { none: { reviewerId: userId } },
+    },
   });
 }
 
@@ -314,6 +360,7 @@ export async function checkUserHasPendingReview(
     where: {
       clientId,
       professionalId,
+      status: { in: ["active", "completed"] },
       reviews: { none: { reviewerId: clientId } },
     },
     orderBy: { createdAt: "desc" },
@@ -322,10 +369,6 @@ export async function checkUserHasPendingReview(
   return workRecord ? { workRecordId: workRecord.id } : null;
 }
 
-/**
- * Calificación privada del cliente: solo debe mostrarse al profesional que
- * la escribió (regla del módulo reviews — nunca se expone públicamente).
- */
 export async function getClientRatingForProfessional(
   clientId: string,
   professionalId: string,
@@ -341,17 +384,16 @@ export async function getWorkRecordForNewReviewPage(
   professionalId: string,
 ): Promise<WorkRecordForNewReviewPage | null> {
   const workRecord = await prisma.workRecord.findFirst({
-    where: { clientId, professionalId },
+    where: {
+      clientId,
+      professionalId,
+      status: { in: ["active", "completed"] },
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
-      type: true,
-      professional: {
-        select: {
-          slug: true,
-          user: { select: { fullName: true } },
-        },
-      },
+      status: true,
+      professional: { select: { slug: true, user: { select: { fullName: true } } } },
       trade: { select: { name: true } },
       reviews: { where: { reviewerId: clientId }, select: { id: true } },
     },
@@ -361,10 +403,128 @@ export async function getWorkRecordForNewReviewPage(
 
   return {
     id: workRecord.id,
-    type: workRecord.type,
+    status: workRecord.status as WorkRecordStatus,
     professionalName: workRecord.professional.user.fullName,
     professionalSlug: workRecord.professional.slug,
     tradeName: workRecord.trade.name,
     alreadyReviewed: workRecord.reviews.length > 0,
+  };
+}
+
+// Todos los work_records disputados (para la vista admin).
+export async function getDisputedWorkRecords() {
+  return prisma.workRecord.findMany({
+    where: { status: "disputed" },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      createdAt: true,
+      initiatedBy: true,
+      professional: { select: { id: true, user: { select: { fullName: true } } } },
+      client: { select: { id: true, fullName: true } },
+      trade: { select: { name: true } },
+    },
+  });
+}
+
+// Contexto completo de una disputa para que el admin pueda tomar una decisión informada.
+export async function getDisputeContextForAdmin(
+  workRecordId: string,
+): Promise<DisputeContextForAdmin | null> {
+  const workRecord = await prisma.workRecord.findUnique({
+    where: { id: workRecordId },
+    select: {
+      id: true,
+      status: true,
+      initiatedBy: true,
+      createdAt: true,
+      contactEvent: { select: { createdAt: true } },
+      trade: { select: { name: true } },
+      professional: {
+        select: {
+          id: true,
+          user: { select: { fullName: true, email: true } },
+        },
+      },
+      client: { select: { id: true, fullName: true, email: true } },
+    },
+  });
+
+  if (!workRecord) return null;
+
+  const [proDisputes, clientClaims] = await Promise.all([
+    // Historial de disputas del profesional (excluyendo el actual)
+    prisma.workRecord.findMany({
+      where: {
+        id: { not: workRecordId },
+        professionalId: workRecord.professional.id,
+        status: { in: ["disputed", "cancelled"] },
+        initiatedBy: "client",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        disputeResolution: true,
+        createdAt: true,
+        disputeResolvedAt: true,
+        client: { select: { fullName: true } },
+      },
+    }),
+    // Historial de reclamos del cliente (excluyendo el actual)
+    prisma.workRecord.findMany({
+      where: {
+        id: { not: workRecordId },
+        clientId: workRecord.client.id,
+        initiatedBy: "client",
+        status: { in: ["disputed", "cancelled", "active", "completed"] },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        disputeResolution: true,
+        createdAt: true,
+        disputeResolvedAt: true,
+        professional: { select: { user: { select: { fullName: true } } } },
+      },
+    }),
+  ]);
+
+  return {
+    workRecord: {
+      id: workRecord.id,
+      status: workRecord.status as WorkRecordStatus,
+      initiatedBy: workRecord.initiatedBy,
+      createdAt: workRecord.createdAt,
+      contactEventCreatedAt: workRecord.contactEvent.createdAt,
+      tradeName: workRecord.trade.name,
+      professional: {
+        id: workRecord.professional.id,
+        fullName: workRecord.professional.user.fullName,
+        email: workRecord.professional.user.email,
+      },
+      client: {
+        id: workRecord.client.id,
+        fullName: workRecord.client.fullName,
+        email: workRecord.client.email,
+      },
+    },
+    proDisputes: proDisputes.map((wr) => ({
+      id: wr.id,
+      status: wr.status as WorkRecordStatus,
+      disputeResolution: wr.disputeResolution,
+      createdAt: wr.createdAt,
+      disputeResolvedAt: wr.disputeResolvedAt,
+      clientName: wr.client.fullName,
+    })),
+    clientClaims: clientClaims.map((wr) => ({
+      id: wr.id,
+      status: wr.status as WorkRecordStatus,
+      disputeResolution: wr.disputeResolution,
+      createdAt: wr.createdAt,
+      disputeResolvedAt: wr.disputeResolvedAt,
+      professionalName: wr.professional.user.fullName,
+    })),
   };
 }

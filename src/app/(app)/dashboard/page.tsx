@@ -8,7 +8,7 @@ import {
   getPendingContactsCount,
 } from "@/modules/contacts/queries";
 import {
-  getPendingReviewsForClientCount,
+  getPendingWorkReviewsForClientCount,
   getPendingReviewsToRespondCount,
 } from "@/modules/reviews/queries";
 import { getUserRole } from "@/modules/users/queries";
@@ -43,7 +43,7 @@ export default async function DashboardPage() {
           Promise.resolve(0),
           Promise.resolve(0),
           Promise.resolve(0),
-          session ? getPendingReviewsForClientCount(session.user.id) : Promise.resolve(0),
+          session ? getPendingWorkReviewsForClientCount(session.user.id) : Promise.resolve(0),
         ]);
 
   return (

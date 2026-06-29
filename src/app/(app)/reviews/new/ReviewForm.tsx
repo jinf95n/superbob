@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { submitClientReviewAction } from "@/modules/reviews/actions";
+import { submitWorkReviewAction } from "@/modules/reviews/actions";
 import { WorkRecordForNewReviewPage } from "@/modules/reviews/types";
 import { Button } from "@/components/ui/Button";
 import { useServerAction } from "@/lib/hooks/useServerAction";
@@ -31,7 +31,7 @@ export function ReviewForm({ workRecord }: ReviewFormProps) {
   const [ratingError, setRatingError] = useState<string | null>(null);
 
   const { execute, isPending, isSuccess, isError, error } = useServerAction(
-    submitClientReviewAction,
+    submitWorkReviewAction,
     {
       successDuration: 1500,
       onSuccess: () => {
@@ -58,8 +58,7 @@ export function ReviewForm({ workRecord }: ReviewFormProps) {
 
   const isLocked = isPending || isSuccess;
   const displayRating = hovered || rating;
-  const workTitle =
-    workRecord.type === "completed" ? "Reseña de trabajo" : "Reseña de contacto";
+  const workTitle = "Reseña de trabajo";
 
   return (
     <div className="flex flex-col gap-4">

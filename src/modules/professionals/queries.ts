@@ -384,7 +384,6 @@ export async function getProfessionalProfileBySlug(
           publishedAt: true,
           reviewer: { select: { id: true, fullName: true } },
           trade: { select: { name: true } },
-          workRecord: { select: { type: true } },
         },
       },
     },
@@ -492,7 +491,7 @@ export async function getProfessionalProfileBySlug(
       rating: review.rating,
       comment: review.comment,
       publishedAt: review.publishedAt as Date,
-      workRecordType: review.workRecord.type,
+      reviewType: review.type,
     }));
 
   const bio = professional.bio?.trim() || null;

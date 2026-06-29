@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { WorkRecordType } from "@prisma/client";
+import { ReviewType } from "@prisma/client";
 
 const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value);
 
@@ -159,7 +159,7 @@ export type ProfessionalReviewForProfile = {
   rating: number;
   comment: string | null;
   publishedAt: Date;
-  workRecordType: WorkRecordType;
+  reviewType: ReviewType;
 };
 
 export type ProfessionalFullProfile = {

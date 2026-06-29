@@ -15,7 +15,6 @@ type ContactsForReviewListProps = {
 
 type ConfirmModalState = {
   contactEventId: string;
-  clientId: string;
   clientName: string;
 };
 
@@ -84,7 +83,6 @@ export function ContactsForReviewList({
                   onClick={() =>
                     setConfirmModal({
                       contactEventId: contact.contactEventId,
-                      clientId: contact.clientId,
                       clientName: contact.clientName,
                     })
                   }
@@ -144,9 +142,7 @@ export function ContactsForReviewList({
                   {workRecord && (
                     <>
                       <span>·</span>
-                      <span>
-                        {workRecord.type === "completed" ? "Trabajo" : "Consulta"}
-                      </span>
+                      <span>Trabajo</span>
                     </>
                   )}
                 </div>
@@ -161,7 +157,6 @@ export function ContactsForReviewList({
       {confirmModal && trades.length > 0 && (
         <ConfirmWorkModal
           contactEventId={confirmModal.contactEventId}
-          clientId={confirmModal.clientId}
           clientName={confirmModal.clientName}
           trades={trades}
           onClose={() => setConfirmModal(null)}

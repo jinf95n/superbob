@@ -1,5 +1,5 @@
-import { WorkRecordType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { WorkRecordStatus } from "@/modules/reviews/types";
 
 export type ContactForReview = {
   contactEventId: string;
@@ -9,7 +9,7 @@ export type ContactForReview = {
   contactDate: Date;
   workRecord: {
     id: string;
-    type: WorkRecordType;
+    status: WorkRecordStatus;
     hasClientRating: boolean;
     hasClientReview: boolean;
   } | null;
@@ -41,7 +41,7 @@ export async function getProfessionalContactsForReview(
     select: {
       id: true,
       clientId: true,
-      type: true,
+      status: true,
       clientRatings: {
         where: { ratedByProfessionalId: professionalId },
         select: { id: true },
@@ -68,7 +68,7 @@ export async function getProfessionalContactsForReview(
       workRecord: wr
         ? {
             id: wr.id,
-            type: wr.type,
+            status: wr.status as WorkRecordStatus,
             hasClientRating: wr.clientRatings.length > 0,
             hasClientReview: wr.reviews.some((r) => r.reviewerId === event.clientId),
           }
@@ -77,9 +77,7 @@ export async function getProfessionalContactsForReview(
   });
 }
 
-export async function getPendingContactsCount(
-  professionalId: string,
-): Promise<number> {
+export async function getPendingContactsCount(professionalId: string): Promise<number> {
   const contactEvents = await prisma.contactEvent.findMany({
     where: { professionalId },
     select: { clientId: true },
@@ -100,12 +98,8 @@ export async function getPendingContactsCount(
   return clientIds.filter((id) => !clientsWithWorkRecord.has(id)).length;
 }
 
-export async function getContactEventsCountSince(
-  since: Date,
-): Promise<number> {
-  return prisma.contactEvent.count({
-    where: { createdAt: { gte: since } },
-  });
+export async function getContactEventsCountSince(since: Date): Promise<number> {
+  return prisma.contactEvent.count({ where: { createdAt: { gte: since } } });
 }
 
 export async function getContactEventsCountForProfessionalSince(

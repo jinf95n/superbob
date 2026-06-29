@@ -1,13 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { confirmWorkFromContactAction } from "@/modules/reviews/actions";
+import { createProWorkRecordAction } from "@/modules/reviews/actions";
 
 type Trade = { id: string; name: string };
 
 type ConfirmWorkModalProps = {
   contactEventId: string;
-  clientId: string;
   clientName: string;
   trades: Trade[];
   onClose: () => void;
@@ -16,14 +15,12 @@ type ConfirmWorkModalProps = {
 
 export function ConfirmWorkModal({
   contactEventId,
-  clientId,
   clientName,
   trades,
   onClose,
   onSuccess,
 }: ConfirmWorkModalProps) {
   const [tradeId, setTradeId] = useState(trades[0]?.id ?? "");
-  const [type, setType] = useState<"contact" | "completed">("completed");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -34,12 +31,7 @@ export function ConfirmWorkModal({
     }
     setError(null);
     startTransition(async () => {
-      const result = await confirmWorkFromContactAction({
-        contactEventId,
-        clientId,
-        tradeId,
-        type,
-      });
+      const result = await createProWorkRecordAction({ contactEventId, tradeId });
       if (result.error) {
         setError(result.error);
       } else if (result.workRecordId) {
@@ -61,36 +53,6 @@ export function ConfirmWorkModal({
         </h2>
 
         <div className="mt-5 flex flex-col gap-4">
-          <div>
-            <label className="mb-1.5 block text-[14px] font-medium text-sb-text">
-              Tipo de interacción
-            </label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setType("completed")}
-                className={`flex-1 rounded-xl border px-4 py-3 text-[14px] font-medium transition-colors ${
-                  type === "completed"
-                    ? "border-sb-blue bg-sb-card-blue text-sb-blue"
-                    : "border-sb-border text-sb-muted"
-                }`}
-              >
-                Trabajo completado
-              </button>
-              <button
-                type="button"
-                onClick={() => setType("contact")}
-                className={`flex-1 rounded-xl border px-4 py-3 text-[14px] font-medium transition-colors ${
-                  type === "contact"
-                    ? "border-sb-blue bg-sb-card-blue text-sb-blue"
-                    : "border-sb-border text-sb-muted"
-                }`}
-              >
-                Solo me consultó
-              </button>
-            </div>
-          </div>
-
           <div>
             <label
               htmlFor="confirm-trade"
@@ -129,7 +91,7 @@ export function ConfirmWorkModal({
               disabled={isPending || !tradeId}
               className="flex-1 rounded-full bg-sb-blue py-3 text-[15px] font-medium text-white disabled:opacity-50"
             >
-              {isPending ? "Guardando..." : "Confirmar"}
+              {isPending ? "Guardando..." : "Registrar trabajo"}
             </button>
           </div>
         </div>

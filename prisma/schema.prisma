@@ -126,6 +126,9 @@ model ProfessionalProfile {
   isActive               Boolean   @default(true) @map("is_active")
   isVerified             Boolean   @default(false) @map("is_verified")
   qrCodeUrl              String?   @map("qr_code_url")
+  // Timestamp hasta el que aplica el boost de nuevo profesional (ver docs/review-system-decisions-v2.md §6).
+  // Se calcula al completar el perfil por primera vez. Null si el boost no se activó aún.
+  newProfessionalBoostUntil DateTime? @map("new_professional_boost_until")
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
 
@@ -140,6 +143,7 @@ model ProfessionalProfile {
   workPhotos         WorkPhoto[]
   whatsappMessages   WhatsappMessage[]
   reportsReceived    Report[]
+  sanctions          ProfessionalSanction[]
 
   @@map("professional_profiles")
 }
@@ -250,29 +254,38 @@ model ProfessionalCoverageArea {
 
 // ---------- Sistema de reseñas ----------
 
-enum WorkRecordType {
-  contact
-  completed
-}
-
 model WorkRecord {
-  id                        String         @id @default(uuid())
-  professionalId            String         @map("professional_id")
-  clientId                  String         @map("client_id")
-  tradeId                   String         @map("trade_id")
-  type                      WorkRecordType
-  initiatedByProfessionalAt DateTime?      @map("initiated_by_professional_at")
-  clientNotifiedAt          DateTime?      @map("client_notified_at")
-  createdAt                 DateTime       @default(now()) @map("created_at")
+  id                   String    @id @default(uuid())
+  professionalId       String    @map("professional_id")
+  clientId             String    @map("client_id")
+  tradeId              String    @map("trade_id")
+  // FK obligatorio al contact_event que originó este work_record.
+  // Permite verificar que hubo contacto real y aplica exclusividad mutua
+  // entre contact_review y work_review (ver docs/review-system-decisions-v2.md §1).
+  contactEventId       String    @map("contact_event_id")
+  // CHECK (status IN ('pending_pro_confirmation','active','completed','cancelled','disputed'))
+  // — agregar en la migración SQL.
+  status               String    @default("active")
+  // CHECK (initiated_by IN ('professional','client')) — agregar en la migración SQL.
+  initiatedBy          String    @map("initiated_by")
+  reviewWindowClosesAt DateTime? @map("review_window_closes_at")
+  disputeResolvedAt    DateTime? @map("dispute_resolved_at")
+  // CHECK (dispute_resolution IN ('work_confirmed','claim_rejected','unresolved'))
+  // — agregar en la migración SQL.
+  disputeResolution    String?   @map("dispute_resolution")
+  createdAt            DateTime  @default(now()) @map("created_at")
 
   professional     ProfessionalProfile @relation(fields: [professionalId], references: [id])
   client           User                @relation(fields: [clientId], references: [id])
   trade            Trade               @relation(fields: [tradeId], references: [id])
+  contactEvent     ContactEvent        @relation(fields: [contactEventId], references: [id])
   reviews          Review[]
   clientRatings    ClientRating[]
   workPhotos       WorkPhoto[]
   whatsappMessages WhatsappMessage[]
 
+  @@index([contactEventId])
+  @@index([status])
   @@map("work_records")
 }
 
@@ -293,6 +306,18 @@ model Review {
   comment                String?
   submittedAt            DateTime?  @map("submitted_at")
   publishedAt            DateTime?  @map("published_at")
+  // Retiro antes de publicación (una vez por parte, reinicia timer del que retira).
+  withdrawnAt            DateTime?  @map("withdrawn_at")
+  // Edición dentro de los 15 minutos post-envío.
+  editedAt               DateTime?  @map("edited_at")
+  // Moderación: suspensión temporal por admin (invisible al público).
+  suspendedAt            DateTime?  @map("suspended_at")
+  // Soft delete por moderación.
+  deletedAt              DateTime?  @map("deleted_at")
+  // Respuesta pública del profesional a la reseña.
+  responseText           String?    @map("response_text")
+  responsePublishedAt    DateTime?  @map("response_published_at")
+  responseEditableUntil  DateTime?  @map("response_editable_until")
   createdAt              DateTime   @default(now()) @map("created_at")
 
   workRecord           WorkRecord          @relation(fields: [workRecordId], references: [id])
@@ -336,10 +361,14 @@ model ContactEvent {
   professionalId String              @map("professional_id")
   clientId       String              @map("client_id")
   source         ContactEventSource?
+  // Almacenado durante CONTACT_IP_RETENTION_DAYS días, luego nulled por cron.
+  // Señal secundaria de fraude. Nunca se expone públicamente.
+  ipAddress      String?             @map("ip_address")
   createdAt      DateTime            @default(now()) @map("created_at")
 
   professional ProfessionalProfile @relation(fields: [professionalId], references: [id])
   client       User                @relation(fields: [clientId], references: [id])
+  workRecords  WorkRecord[]
 
   @@index([professionalId])
   @@index([createdAt])
@@ -409,6 +438,29 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+// ---------- Sanciones ----------
+
+model ProfessionalSanction {
+  id             String    @id @default(uuid())
+  professionalId String    @map("professional_id")
+  // CHECK (type IN ('warning','temporary_suspension','permanent_deactivation'))
+  // — agregar en la migración SQL.
+  type           String
+  reason         String
+  imposedAt      DateTime  @default(now()) @map("imposed_at")
+  // Null para permanent_deactivation.
+  expiresAt      DateTime? @map("expires_at")
+  // Cuándo se levantó manualmente la sanción (si aplica).
+  liftedAt       DateTime? @map("lifted_at")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  professional ProfessionalProfile @relation(fields: [professionalId], references: [id])
+
+  @@index([professionalId, imposedAt])
+  @@map("professional_sanctions")
 }
 
 // ---------- Reportes ----------
