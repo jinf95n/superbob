@@ -398,7 +398,7 @@ export async function submitWorkReviewAction(
     return { error: "Ya enviaste una reseña para este trabajo" };
   }
 
-  await prisma.review.create({
+  const review = await prisma.review.create({
     data: {
       workRecordId,
       reviewerId: session.user.id,
@@ -409,6 +409,7 @@ export async function submitWorkReviewAction(
       comment,
       submittedAt: new Date(),
     },
+    select: { id: true },
   });
 
   const professional = await prisma.professionalProfile.findUnique({
@@ -425,7 +426,7 @@ export async function submitWorkReviewAction(
 
   await checkAndPublishReviews(workRecordId);
 
-  return { success: true };
+  return { success: true, reviewId: review.id };
 }
 
 // El cliente envía una contact_review (solo cuando no hay work_record para el contact_event).
@@ -483,6 +484,7 @@ export async function submitContactReviewAction(
   });
 
   const now = new Date();
+  let reviewId = "";
 
   // Crea el work_record (status='completed') y la contact_review en una transacción
   await prisma.$transaction(async (tx) => {
@@ -497,7 +499,7 @@ export async function submitContactReviewAction(
       },
     });
 
-    await tx.review.create({
+    const review = await tx.review.create({
       data: {
         workRecordId: workRecord.id,
         reviewerId: session.user.id,
@@ -509,7 +511,9 @@ export async function submitContactReviewAction(
         submittedAt: now,
         publishedAt: now,
       },
+      select: { id: true },
     });
+    reviewId = review.id;
   });
 
   if (professional) {
@@ -519,7 +523,7 @@ export async function submitContactReviewAction(
     });
   }
 
-  return { success: true };
+  return { success: true, reviewId };
 }
 
 // El profesional califica al cliente de forma privada (tabla client_ratings).
@@ -660,10 +664,6 @@ export async function editWorkReviewAction(
 
   if (!review || review.reviewerId !== session.user.id) {
     return { error: "No encontramos esa reseña" };
-  }
-
-  if (review.type !== "work_review") {
-    return { error: "Solo podés editar reseñas de trabajo" };
   }
 
   if (review.deletedAt || review.withdrawnAt) {

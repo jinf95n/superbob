@@ -50,6 +50,24 @@ export default async function ProfessionalReviewsPage() {
         <SuperbobScoreCard breakdown={scoreBreakdown} />
       </div>
 
+      {pendingRatings.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-sb-blue/20 bg-sb-card-blue p-5">
+          <p className="font-display text-[16px] font-semibold text-sb-text">
+            Recibiste una nueva reseña.
+          </p>
+          <p className="mt-1 text-[14px] text-sb-muted">
+            Todos los profesionales reciben opiniones diversas. Cómo respondés
+            también construye tu reputación.
+          </p>
+          <a
+            href="#rate-clients"
+            className="mt-3 inline-flex h-10 items-center rounded-full bg-sb-blue px-4 text-[14px] font-medium text-white"
+          >
+            Responder reseña
+          </a>
+        </div>
+      )}
+
       {pendingClaims.length > 0 && (
         <section className="mt-6">
           <h2 className="font-display text-[18px] font-semibold text-sb-text">
@@ -112,7 +130,7 @@ export default async function ProfessionalReviewsPage() {
         <ContactsForReviewList contacts={contacts} trades={professionalTrades} />
       </section>
 
-      <section className="mt-6">
+      <section id="rate-clients" className="mt-6">
         <h2 className="font-display text-[18px] font-semibold text-sb-text">
           Calificá a tus clientes
         </h2>
@@ -121,19 +139,25 @@ export default async function ProfessionalReviewsPage() {
             No tenés clientes pendientes de calificar.
           </p>
         ) : (
-          <div className="mt-3 flex flex-col gap-3">
-            {pendingRatings.map((pending) => (
-              <div
-                key={pending.workRecordId}
-                className="rounded-2xl bg-white p-5"
-              >
-                <p className="text-[15px] font-medium text-sb-text">
-                  {pending.clientName} · {pending.tradeName}
-                </p>
-                <RateClientForm workRecordId={pending.workRecordId} />
-              </div>
-            ))}
-          </div>
+          <>
+            <p className="mt-1 text-[13px] text-sb-muted">
+              Respondé pensando en los próximos cien clientes, no solo en quien
+              escribió esto.
+            </p>
+            <div className="mt-3 flex flex-col gap-3">
+              {pendingRatings.map((pending) => (
+                <div
+                  key={pending.workRecordId}
+                  className="rounded-2xl bg-white p-5"
+                >
+                  <p className="text-[15px] font-medium text-sb-text">
+                    {pending.clientName} · {pending.tradeName}
+                  </p>
+                  <RateClientForm workRecordId={pending.workRecordId} />
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </section>
 
@@ -170,6 +194,12 @@ export default async function ProfessionalReviewsPage() {
                 <p className="mt-1 text-sm text-sb-muted">
                   {review.publishedAt.toLocaleDateString("es-AR")}
                 </p>
+                {review.rating >= 4 && (
+                  <p className="mt-2 text-[13px] text-sb-success">
+                    Buena reseña. Las reseñas construyen confianza. Seguí dando
+                    ese nivel de servicio.
+                  </p>
+                )}
               </div>
             ))}
           </div>

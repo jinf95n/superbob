@@ -328,6 +328,10 @@ async function performAccountDeletion(
       }
     }
 
+    // Desvincular todos los providers OAuth y credentials para que el usuario
+    // pueda registrarse de nuevo en el futuro sin heredar esta identidad eliminada.
+    await tx.account.deleteMany({ where: { userId } });
+
     // Anonimizar usuario (tombstone email para no violar la constraint unique)
     await tx.user.update({
       where: { id: userId },
