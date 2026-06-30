@@ -348,9 +348,6 @@ async function performAccountDeletion(
         data: { isActive: false, deletedAt: now },
       });
     }
-
-    // Invalidar todas las sesiones activas
-    await tx.session.deleteMany({ where: { userId } });
   });
 
   return { success: true };
@@ -362,7 +359,23 @@ export async function deleteAccountAction(): Promise<DeleteAccountResult> {
     return { error: "Necesitás iniciar sesión" };
   }
 
-  return performAccountDeletion(session.user.id);
+  const result = await performAccountDeletion(session.user.id);
+  if ("error" in result || "blocked" in result) return result;
+
+  // Sign out the current session while it still exists in DB.
+  // nextCookies() intercepta la respuesta y emite Set-Cookie para limpiar
+  // session_token y session_data del browser del usuario.
+  try {
+    await auth.api.signOut({ headers: await headers() });
+  } catch {
+    // Si signOut falla (raro), el deleteMany de abajo limpia la DB y el
+    // safety net del layout detecta el deletedAt y fuerza el cierre.
+  }
+
+  // Borrar sesiones de otros dispositivos (la actual ya fue eliminada por signOut).
+  await prisma.session.deleteMany({ where: { userId: session.user.id } });
+
+  return { success: true };
 }
 
 export async function adminDeleteAccountAction(
@@ -395,5 +408,12 @@ export async function adminDeleteAccountAction(
     return { error: "Esta cuenta ya fue eliminada" };
   }
 
-  return performAccountDeletion(targetUserId);
+  const result = await performAccountDeletion(targetUserId);
+  if ("error" in result || "blocked" in result) return result;
+
+  // No llamamos signOut porque la sesión activa es del admin, no del target.
+  // Borramos todas las sesiones del target directamente desde la DB.
+  await prisma.session.deleteMany({ where: { userId: targetUserId } });
+
+  return { success: true };
 }
