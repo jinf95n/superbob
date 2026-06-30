@@ -11,15 +11,13 @@ import {
   DeleteAccountResult,
   LoginSchema,
   PasswordResetActionState,
-  PhoneOtpActionState,
   RegisterSchema,
   RequestPasswordResetSchema,
   ResetPasswordSchema,
-  SendPhoneOtpSchema,
+  UpdatePhoneSchema,
   UpdateUserProfileActionState,
   UpdateUserProfileInput,
   UpdateUserProfileSchema,
-  VerifyPhoneOtpSchema,
 } from "./types";
 
 export async function registerAction(
@@ -52,77 +50,6 @@ export async function registerAction(
   }
 
   return { success: true, redirectTo: "/welcome" };
-}
-
-export async function sendPhoneOtpAction(
-  _prevState: PhoneOtpActionState,
-  formData: FormData,
-): Promise<PhoneOtpActionState> {
-  const requestHeaders = await headers();
-  const session = await auth.api.getSession({ headers: requestHeaders });
-  if (!session) {
-    return { error: "Necesitás iniciar sesión" };
-  }
-
-  const parsed = SendPhoneOtpSchema.safeParse({
-    phoneNumber: formData.get("phoneNumber"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
-  }
-
-  try {
-    await auth.api.sendPhoneNumberOTP({
-      body: { phoneNumber: parsed.data.phoneNumber },
-      headers: requestHeaders,
-    });
-  } catch (error) {
-    if (error instanceof APIError) {
-      return { error: error.message };
-    }
-    throw error;
-  }
-
-  return { success: true };
-}
-
-export async function verifyPhoneOtpAction(
-  _prevState: PhoneOtpActionState,
-  formData: FormData,
-): Promise<PhoneOtpActionState> {
-  const requestHeaders = await headers();
-  const session = await auth.api.getSession({ headers: requestHeaders });
-  if (!session) {
-    return { error: "Necesitás iniciar sesión" };
-  }
-
-  const parsed = VerifyPhoneOtpSchema.safeParse({
-    phoneNumber: formData.get("phoneNumber"),
-    code: formData.get("code"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
-  }
-
-  try {
-    await auth.api.verifyPhoneNumber({
-      body: {
-        phoneNumber: parsed.data.phoneNumber,
-        code: parsed.data.code,
-        updatePhoneNumber: true,
-      },
-      headers: requestHeaders,
-    });
-  } catch (error) {
-    if (error instanceof APIError) {
-      return { error: "Código inválido o expirado" };
-    }
-    throw error;
-  }
-
-  return { success: true };
 }
 
 export async function loginAction(
@@ -293,6 +220,32 @@ export async function updateUserProfileAction(
   return { success: true };
 }
 
+export type UpdatePhoneActionState = {
+  error?: string;
+  success?: boolean;
+};
+
+export async function updatePhoneAction(
+  phone: string,
+): Promise<UpdatePhoneActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) {
+    return { error: "Necesitás iniciar sesión" };
+  }
+
+  const parsed = UpdatePhoneSchema.safeParse({ phone });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Teléfono inválido" };
+  }
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { phone: parsed.data.phone || null },
+  });
+
+  return { success: true };
+}
+
 async function performAccountDeletion(
   userId: string,
 ): Promise<DeleteAccountResult> {
@@ -395,9 +348,6 @@ async function performAccountDeletion(
         data: { isActive: false, deletedAt: now },
       });
     }
-
-    // Invalidar todas las sesiones activas
-    await tx.session.deleteMany({ where: { userId } });
   });
 
   return { success: true };
@@ -409,7 +359,23 @@ export async function deleteAccountAction(): Promise<DeleteAccountResult> {
     return { error: "Necesitás iniciar sesión" };
   }
 
-  return performAccountDeletion(session.user.id);
+  const result = await performAccountDeletion(session.user.id);
+  if ("error" in result || "blocked" in result) return result;
+
+  // Sign out the current session while it still exists in DB.
+  // nextCookies() intercepta la respuesta y emite Set-Cookie para limpiar
+  // session_token y session_data del browser del usuario.
+  try {
+    await auth.api.signOut({ headers: await headers() });
+  } catch {
+    // Si signOut falla (raro), el deleteMany de abajo limpia la DB y el
+    // safety net del layout detecta el deletedAt y fuerza el cierre.
+  }
+
+  // Borrar sesiones de otros dispositivos (la actual ya fue eliminada por signOut).
+  await prisma.session.deleteMany({ where: { userId: session.user.id } });
+
+  return { success: true };
 }
 
 export async function adminDeleteAccountAction(
@@ -442,5 +408,12 @@ export async function adminDeleteAccountAction(
     return { error: "Esta cuenta ya fue eliminada" };
   }
 
-  return performAccountDeletion(targetUserId);
+  const result = await performAccountDeletion(targetUserId);
+  if ("error" in result || "blocked" in result) return result;
+
+  // No llamamos signOut porque la sesión activa es del admin, no del target.
+  // Borramos todas las sesiones del target directamente desde la DB.
+  await prisma.session.deleteMany({ where: { userId: targetUserId } });
+
+  return { success: true };
 }

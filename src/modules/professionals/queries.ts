@@ -644,11 +644,6 @@ export async function getProfileCompleteness(
       points: 10,
     },
     {
-      label: "Identidad verificada",
-      completed: professional.isVerified,
-      points: 15,
-    },
-    {
       label: "Al menos 5 reseñas publicadas",
       completed: publishedReviewsCount >= 5,
       points: 10,
