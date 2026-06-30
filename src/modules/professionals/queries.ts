@@ -9,6 +9,7 @@ import {
   FeaturedProfessional,
   PlatformStats,
   ProfessionalBadge,
+  ProfessionalDashboardMetrics,
   ProfessionalFullProfile,
   ProfessionalProfileForEdit,
   ProfessionalReviewForProfile,
@@ -787,6 +788,65 @@ export async function getPrivateSuperbobScore(
 
   const total = components.reduce((sum, c) => sum + c.value, 0);
   return { total, components };
+}
+
+export async function getDashboardMetricsForProfessional(
+  professionalId: string,
+): Promise<ProfessionalDashboardMetrics> {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const [
+    totalContacts,
+    contacts30d,
+    reviewsReceived,
+    verifiedWorkRecords,
+    uniqueContactClients,
+    clientsWithWorkRecord,
+  ] = await Promise.all([
+    prisma.contactEvent.count({ where: { professionalId } }),
+    prisma.contactEvent.count({
+      where: { professionalId, createdAt: { gte: thirtyDaysAgo } },
+    }),
+    prisma.review.count({
+      where: {
+        reviewedProfessionalId: professionalId,
+        publishedAt: { not: null },
+        suspendedAt: null,
+        deletedAt: null,
+      },
+    }),
+    prisma.workRecord.count({
+      where: {
+        professionalId,
+        reviews: { some: { publishedAt: { not: null }, type: "work_review" } },
+      },
+    }),
+    prisma.contactEvent.findMany({
+      where: { professionalId },
+      select: { clientId: true },
+      distinct: ["clientId"],
+    }),
+    prisma.workRecord.findMany({
+      where: { professionalId, status: { not: "cancelled" } },
+      select: { clientId: true },
+      distinct: ["clientId"],
+    }),
+  ]);
+
+  const conversionRate =
+    uniqueContactClients.length > 0
+      ? Math.round(
+          (clientsWithWorkRecord.length / uniqueContactClients.length) * 100,
+        )
+      : 0;
+
+  return {
+    totalContacts,
+    contacts30d,
+    reviewsReceived,
+    verifiedWorkRecords,
+    conversionRate,
+  };
 }
 
 async function getDepartmentTopRank(

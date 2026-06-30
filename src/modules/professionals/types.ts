@@ -224,6 +224,14 @@ export type ContactMetrics = {
   responseTimeLabel: string;
 };
 
+export type ProfessionalDashboardMetrics = {
+  totalContacts: number;
+  contacts30d: number;
+  reviewsReceived: number;
+  verifiedWorkRecords: number;
+  conversionRate: number;
+};
+
 export type ProfessionalSecondaryTradeForEdit = {
   tradeId: string;
   yearsExperience: number | null;

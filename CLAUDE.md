@@ -434,6 +434,8 @@ NEXT_PUBLIC_APP_URL=
 
 21. **En App Router, segmentos estáticos y dinámicos al mismo nivel coexisten sin conflicto.** Por ejemplo, `/reviews/contact/page.tsx` (lista) y `/reviews/contact/[contactEventId]/page.tsx` (formulario) son rutas distintas que Next.js resuelve correctamente. Esto permite tener páginas de lista e índice junto a sus rutas dinámicas individuales sin necesidad de reorganizar la carpeta.
 
+22. **El sidebar de la sección privada usa flex en lugar de `position: fixed`.** El layout `(app)/layout.tsx` aplica `sm:h-screen sm:flex-col sm:overflow-hidden` en el contenedor raíz. El `AppSidebar` es un hijo flex (`hidden sm:flex shrink-0`) dentro del contenedor interior `flex-1 sm:overflow-hidden`. El main content tiene `sm:overflow-y-auto`. Esto evita hardcodear la altura del header (que requeriría `top-[Npx]` en un `fixed`), y garantiza que sidebar y contenido scrolleen de forma independiente. No agregar `position: fixed` al sidebar ni `transform`/`will-change` al contenedor raíz (romperían el scroll independiente y el containing block de elementos fixed internos como modales y toasts).
+
 ---
 
 ## Lo que NO existe en Fase 1
