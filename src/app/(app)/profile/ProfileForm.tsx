@@ -2,6 +2,7 @@
 
 import {
   useState,
+  useEffect,
   useTransition,
 } from "react";
 import Link from "next/link";
@@ -54,8 +55,33 @@ export function ProfileForm({
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [isSavingPhone, startSavePhone] = useTransition();
 
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailChangeMessage, setEmailChangeMessage] = useState<string | null>(null);
+  const [isSavingEmail, startSaveEmail] = useTransition();
+
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const RESEND_COOLDOWN_MS = 60_000;
+  const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!cooldownUntil) return;
+    const interval = setInterval(() => {
+      const left = Math.ceil((cooldownUntil - Date.now()) / 1000);
+      if (left <= 0) {
+        setSecondsLeft(0);
+        setCooldownUntil(null);
+      } else {
+        setSecondsLeft(left);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownUntil]);
 
   function handleSaveName() {
     setNameError(null);
@@ -94,6 +120,53 @@ export function ProfileForm({
     setIsEditingPhone(false);
   }
 
+  function handleCancelEditEmail() {
+    setNewEmail("");
+    setEmailError(null);
+    setIsEditingEmail(false);
+  }
+
+  function handleSaveEmail() {
+    setEmailError(null);
+    setEmailChangeMessage(null);
+    startSaveEmail(async () => {
+      const { error } = await authClient.changeEmail({
+        newEmail: newEmail.trim(),
+        callbackURL: "/profile",
+      });
+      if (error) {
+        setEmailError(error.message ?? "No pudimos cambiar el email. Intentá de nuevo.");
+        return;
+      }
+      setIsEditingEmail(false);
+      setNewEmail("");
+      if (accountProfile.emailVerified) {
+        setEmailChangeMessage(
+          "Te enviamos un email a tu dirección actual para confirmar el cambio.",
+        );
+      } else {
+        setEmailChangeMessage("Email cambiado. Revisá tu nuevo correo para verificarlo.");
+        router.refresh();
+      }
+    });
+  }
+
+  async function handleResendVerification() {
+    if (cooldownUntil && Date.now() < cooldownUntil) return;
+    setResendStatus("sending");
+    try {
+      await authClient.sendVerificationEmail({
+        email: accountProfile.email,
+        callbackURL: "/profile",
+      });
+      setResendStatus("sent");
+      setCooldownUntil(Date.now() + RESEND_COOLDOWN_MS);
+      setSecondsLeft(60);
+    } catch {
+      setResendStatus("error");
+    }
+  }
+
   async function handleLogout() {
     setIsLoggingOut(true);
     await authClient.signOut();
@@ -128,9 +201,33 @@ export function ProfileForm({
             {accountProfile.email}
           </p>
           {!accountProfile.emailVerified && (
-            <p className="mt-1 text-[12px] text-sb-warning">
-              Email sin verificar — revisá tu casilla de correo
-            </p>
+            <div className="mt-1 space-y-1">
+              <p className="text-[12px] text-sb-warning">
+                Email sin verificar — revisá tu casilla de correo
+              </p>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendStatus === "sending" || cooldownUntil !== null}
+                className="text-[12px] text-sb-blue hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {resendStatus === "sending"
+                  ? "Enviando..."
+                  : cooldownUntil !== null
+                  ? `Reenviar en ${secondsLeft}s`
+                  : "Reenviar email de verificación"}
+              </button>
+              {resendStatus === "sent" && cooldownUntil !== null && (
+                <p className="text-[12px] text-sb-success">
+                  Email enviado. Revisá tu casilla.
+                </p>
+              )}
+              {resendStatus === "error" && (
+                <p className="text-[12px] text-sb-error">
+                  No pudimos enviar el email. Intentá de nuevo.
+                </p>
+              )}
+            </div>
           )}
           <p className="mt-0.5 text-[13px] text-sb-muted/70">
             Miembro desde {formatMemberSince(accountProfile.createdAt)}
@@ -224,6 +321,70 @@ export function ProfileForm({
           <p className="mt-1 text-[16px] font-medium text-sb-text">
             {accountProfile.fullName}
           </p>
+        )}
+      </div>
+
+      {/* Email */}
+      <div className="rounded-2xl border border-sb-border bg-white p-5">
+        <div className="flex items-center justify-between">
+          <p className="text-[13px] font-medium text-sb-muted">Email</p>
+          {!isEditingEmail && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditingEmail(true);
+                setEmailChangeMessage(null);
+              }}
+              className="text-[13px] font-medium text-sb-blue"
+            >
+              Editar
+            </button>
+          )}
+        </div>
+
+        {isEditingEmail ? (
+          <div className="mt-2 flex flex-col gap-2">
+            <input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              autoFocus
+              placeholder={accountProfile.email}
+              className="w-full rounded-[10px] border-[1.5px] border-sb-border px-3.5 py-3 text-[15px] text-sb-text outline-none focus:border-sb-blue focus:ring-2 focus:ring-sb-blue/10"
+            />
+            {emailError && (
+              <p className="text-[13px] text-sb-error">{emailError}</p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleCancelEditEmail}
+                className="flex h-10 flex-1 items-center justify-center rounded-full border border-sb-border text-[14px] font-medium text-sb-text"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEmail}
+                disabled={isSavingEmail || !newEmail.trim()}
+                className="flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-sb-blue text-[14px] font-medium text-white disabled:opacity-50"
+              >
+                {isSavingEmail && <Spinner className="h-4 w-4" />}
+                {isSavingEmail ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-1">
+            <p className="text-[16px] font-medium text-sb-text">
+              {accountProfile.email}
+            </p>
+            {emailChangeMessage && (
+              <p className="mt-1 text-[13px] text-sb-success">
+                {emailChangeMessage}
+              </p>
+            )}
+          </div>
         )}
       </div>
 

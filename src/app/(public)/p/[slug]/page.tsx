@@ -59,7 +59,7 @@ export default async function ProfessionalPublicProfilePage({
       getProfessionalBadges(professional.id),
       getContactMetrics(professional.id),
       isOwner ? getProfileCompleteness(professional.id) : Promise.resolve(null),
-      session ? getProfessionalContactPhone(professional.id) : Promise.resolve(null),
+      session?.user.emailVerified ? getProfessionalContactPhone(professional.id) : Promise.resolve(null),
       isClient
         ? checkUserHasPendingReview(session.user.id, professional.id)
         : Promise.resolve(null),

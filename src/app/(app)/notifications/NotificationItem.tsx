@@ -12,7 +12,7 @@ type NotificationItemProps = {
 function getNotificationMessage(notification: NotificationListItem): string {
   switch (notification.type) {
     case "review_received":
-      return "Un cliente dejó una reseña sobre tu trabajo. Calificalo para que se publique.";
+      return "Recibiste una nueva reseña. Todos los profesionales reciben opiniones diversas. Cómo respondés también construye tu reputación.";
     case "work_confirmed":
       return notification.payload?.message ?? "Nuevo trabajo registrado. ¿Querés dejar una reseña?";
     case "review_published":

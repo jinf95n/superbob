@@ -70,6 +70,9 @@ export async function revealPhoneAction(
   if (!session) {
     return { error: "Necesitás iniciar sesión para ver el teléfono" };
   }
+  if (!session.user.emailVerified) {
+    return { error: "Tenés que verificar tu email para ver el teléfono" };
+  }
 
   const parsed = RevealPhoneSchema.safeParse(input);
   if (!parsed.success) {

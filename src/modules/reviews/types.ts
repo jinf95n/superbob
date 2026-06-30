@@ -71,6 +71,7 @@ export type SubmitWorkReviewInput = z.infer<typeof SubmitWorkReviewSchema>;
 export type SubmitWorkReviewActionState = {
   error?: string;
   success?: boolean;
+  reviewId?: string;
 };
 
 // Cliente envía una contact_review (no existe work_record para ese contact_event)
@@ -84,6 +85,7 @@ export type SubmitContactReviewInput = z.infer<typeof SubmitContactReviewSchema>
 export type SubmitContactReviewActionState = {
   error?: string;
   success?: boolean;
+  reviewId?: string;
 };
 
 // Profesional califica al cliente (privado, tabla client_ratings)
