@@ -9,13 +9,13 @@ export default function CuentaEliminadaPage() {
 
   useEffect(() => {
     authClient.signOut().finally(() => {
-      router.replace("/");
+      router.replace("/login");
     });
   }, [router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-sb-bg px-4">
-      <p className="text-[15px] text-sb-muted">Cerrando sesión...</p>
+      <p className="text-[15px] text-sb-muted">Esta cuenta fue eliminada.</p>
     </div>
   );
 }
