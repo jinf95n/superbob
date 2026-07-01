@@ -62,6 +62,7 @@ export type SearchableProfessional = {
   completedJobsCount: number;
   yearsExperience: number;
   profileScore: number;
+  superbobScore: number;
   latestReview: SearchableLatestReview | null;
 };
 
@@ -78,6 +79,7 @@ const yearsExperienceSchema = z.preprocess(
 export const SecondaryTradeSchema = z.object({
   tradeId: z.string().uuid("Elegí un oficio"),
   yearsExperience: yearsExperienceSchema,
+  specialties: z.array(z.string()).default([]),
 });
 
 export const CreateProfessionalProfileSchema = z
@@ -93,6 +95,7 @@ export const CreateProfessionalProfileSchema = z
       .regex(/^[\d\s\+\-\(\)]+$/, "Solo números, espacios y +/-/()"),
     primaryTradeId: z.string().uuid("Elegí un oficio principal"),
     primaryYearsExperience: yearsExperienceSchema,
+    primarySpecialties: z.array(z.string()).default([]),
     secondaryTrades: z
       .array(SecondaryTradeSchema)
       .max(4, "Máximo 4 oficios secundarios"),
@@ -148,6 +151,7 @@ export type ProfessionalTradeForProfile = {
   slug: string;
   isPrimary: boolean;
   yearsExperience: number | null;
+  specialties: string[];
   completedWorkCount: number;
 };
 
@@ -155,6 +159,8 @@ export type ProfessionalReviewForProfile = {
   id: string;
   reviewerId: string;
   reviewerDisplayName: string;
+  reviewerAvatarUrl: string | null;
+  reviewsGivenCount: number;
   tradeName: string;
   rating: number;
   comment: string | null;
@@ -235,6 +241,7 @@ export type ProfessionalDashboardMetrics = {
 export type ProfessionalSecondaryTradeForEdit = {
   tradeId: string;
   yearsExperience: number | null;
+  specialties: string[];
 };
 
 export type ProfessionalProfileForEdit = {
@@ -244,6 +251,7 @@ export type ProfessionalProfileForEdit = {
   contactPhone: string | null;
   primaryTradeId: string | null;
   primaryYearsExperience: number | null;
+  primarySpecialties: string[];
   secondaryTrades: ProfessionalSecondaryTradeForEdit[];
   departmentIds: string[];
   primaryDepartmentId: string | null;

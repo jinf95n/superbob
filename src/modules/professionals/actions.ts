@@ -48,6 +48,7 @@ export async function createProfessionalProfileAction(
     contactPhone,
     primaryTradeId,
     primaryYearsExperience,
+    primarySpecialties,
     secondaryTrades,
     departmentIds,
   } = parsed.data;
@@ -74,6 +75,7 @@ export async function createProfessionalProfileAction(
             tradeId: primaryTradeId,
             isPrimary: true,
             yearsExperience: primaryYearsExperience,
+            specialties: primarySpecialties,
           },
         });
 
@@ -84,6 +86,7 @@ export async function createProfessionalProfileAction(
               tradeId: trade.tradeId,
               isPrimary: false,
               yearsExperience: trade.yearsExperience,
+              specialties: trade.specialties,
             })),
           });
         }
@@ -173,6 +176,7 @@ export async function updateProfessionalProfileAction(
     contactPhone,
     primaryTradeId,
     primaryYearsExperience,
+    primarySpecialties,
     secondaryTrades,
     departmentIds,
   } = parsed.data;
@@ -196,6 +200,7 @@ export async function updateProfessionalProfileAction(
         tradeId: primaryTradeId,
         isPrimary: true,
         yearsExperience: primaryYearsExperience,
+        specialties: primarySpecialties,
       },
     });
     if (secondaryTrades.length > 0) {
@@ -205,6 +210,7 @@ export async function updateProfessionalProfileAction(
           tradeId: trade.tradeId,
           isPrimary: false,
           yearsExperience: trade.yearsExperience,
+          specialties: trade.specialties,
         })),
       });
     }

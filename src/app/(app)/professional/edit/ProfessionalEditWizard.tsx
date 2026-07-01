@@ -12,6 +12,7 @@ import { BioBuilder } from "@/components/shared/BioBuilder";
 import { Spinner } from "@/components/ui/Spinner";
 import { useServerAction } from "@/lib/hooks/useServerAction";
 import { ProfessionalBio, parseBio, serializeBio } from "@/lib/bioTypes";
+import { getSpecialtiesForTrade } from "@/lib/tradeSpecialties";
 
 type Tab = "info" | "trades" | "coverage" | "photos";
 
@@ -27,6 +28,7 @@ type TradeRow = {
   tradeId: string;
   yearsExperience: string;
   isPrimary: boolean;
+  specialties: string[];
 };
 
 let _localIdCounter = 0;
@@ -72,6 +74,7 @@ export function ProfessionalEditWizard({
         tradeId: profile.primaryTradeId,
         yearsExperience: profile.primaryYearsExperience?.toString() ?? "",
         isPrimary: true,
+        specialties: profile.primarySpecialties,
       });
     }
     for (const t of profile.secondaryTrades) {
@@ -80,6 +83,7 @@ export function ProfessionalEditWizard({
         tradeId: t.tradeId,
         yearsExperience: t.yearsExperience?.toString() ?? "",
         isPrimary: false,
+        specialties: t.specialties,
       });
     }
     return rows;
@@ -142,10 +146,32 @@ export function ProfessionalEditWizard({
 
   function updateTradeField(
     localId: number,
-    patch: Partial<Pick<TradeRow, "tradeId" | "yearsExperience">>,
+    patch: Partial<Pick<TradeRow, "tradeId" | "yearsExperience" | "specialties">>,
   ) {
     setTrades((prev) =>
-      prev.map((t) => (t.localId === localId ? { ...t, ...patch } : t)),
+      prev.map((t) => {
+        if (t.localId !== localId) return t;
+        // Si cambia el oficio, limpiar especialidades
+        if (patch.tradeId !== undefined && patch.tradeId !== t.tradeId) {
+          return { ...t, ...patch, specialties: [] };
+        }
+        return { ...t, ...patch };
+      }),
+    );
+  }
+
+  function toggleTradeSpecialty(localId: number, specialty: string) {
+    setTrades((prev) =>
+      prev.map((t) => {
+        if (t.localId !== localId) return t;
+        const has = t.specialties.includes(specialty);
+        return {
+          ...t,
+          specialties: has
+            ? t.specialties.filter((s) => s !== specialty)
+            : [...t.specialties, specialty],
+        };
+      }),
     );
   }
 
@@ -159,6 +185,7 @@ export function ProfessionalEditWizard({
         tradeId: addTradeId,
         yearsExperience: addYears,
         isPrimary: !hasPrimary,
+        specialties: [],
       },
     ]);
     setAddTradeId("");
@@ -205,11 +232,13 @@ export function ProfessionalEditWizard({
       contactPhone,
       primaryTradeId: primaryTrade.tradeId,
       primaryYearsExperience: primaryTrade.yearsExperience || undefined,
+      primarySpecialties: primaryTrade.specialties,
       secondaryTrades: trades
         .filter((t) => !t.isPrimary && t.tradeId)
         .map((t) => ({
           tradeId: t.tradeId,
           yearsExperience: t.yearsExperience || undefined,
+          specialties: t.specialties,
         })),
       departmentIds: Array.from(selectedDepartmentIds),
       primaryDepartmentId: primaryDepartmentId || undefined,
@@ -309,85 +338,121 @@ export function ProfessionalEditWizard({
             )}
 
             <div className="flex flex-col gap-3">
-              {trades.map((trade) => (
-                <div
-                  key={trade.localId}
-                  className="rounded-xl border border-sb-border bg-white p-4"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <select
-                      value={trade.tradeId}
-                      onChange={(e) =>
-                        updateTradeField(trade.localId, {
-                          tradeId: e.target.value,
-                        })
-                      }
-                      className="flex-1 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
-                    >
-                      <option value="">Elegí un oficio</option>
-                      {tradeCategories.map((category) => (
-                        <optgroup key={category.id} label={category.name}>
-                          {category.trades.map((t) => (
-                            <option
-                              key={t.id}
-                              value={t.id}
-                              disabled={
-                                usedTradeIds.has(t.id) &&
-                                t.id !== trade.tradeId
-                              }
-                            >
-                              {t.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                    {trade.isPrimary && (
-                      <span className="shrink-0 rounded-full bg-sb-card-blue px-2.5 py-0.5 text-[12px] font-medium text-sb-blue">
-                        Principal
+              {trades.map((trade) => {
+                const tradeName = tradeLookup.get(trade.tradeId)?.name ?? "";
+                const availableSpecialties = trade.tradeId
+                  ? getSpecialtiesForTrade(tradeName)
+                  : [];
+                return (
+                  <div
+                    key={trade.localId}
+                    className="rounded-xl border border-sb-border bg-white p-4"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <select
+                        value={trade.tradeId}
+                        onChange={(e) =>
+                          updateTradeField(trade.localId, {
+                            tradeId: e.target.value,
+                          })
+                        }
+                        className="flex-1 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                      >
+                        <option value="">Elegí un oficio</option>
+                        {tradeCategories.map((category) => (
+                          <optgroup key={category.id} label={category.name}>
+                            {category.trades.map((t) => (
+                              <option
+                                key={t.id}
+                                value={t.id}
+                                disabled={
+                                  usedTradeIds.has(t.id) &&
+                                  t.id !== trade.tradeId
+                                }
+                              >
+                                {t.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                      {trade.isPrimary && (
+                        <span className="shrink-0 rounded-full bg-sb-card-blue px-2.5 py-0.5 text-[12px] font-medium text-sb-blue">
+                          Principal
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-3">
+                      <input
+                        type="number"
+                        min={0}
+                        max={80}
+                        placeholder="Años de experiencia"
+                        value={trade.yearsExperience}
+                        onChange={(e) =>
+                          updateTradeField(trade.localId, {
+                            yearsExperience: e.target.value,
+                          })
+                        }
+                        className="w-40 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
+                      />
+                      <span className="text-[13px] text-sb-muted">
+                        años de experiencia
                       </span>
+                    </div>
+
+                    {availableSpecialties.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-[12px] font-medium text-sb-muted">
+                          Especialidades{" "}
+                          <span className="font-normal text-sb-muted/60">(opcional)</span>
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {availableSpecialties.map((specialty) => {
+                            const selected = trade.specialties.includes(specialty);
+                            return (
+                              <button
+                                key={specialty}
+                                type="button"
+                                onClick={() =>
+                                  toggleTradeSpecialty(trade.localId, specialty)
+                                }
+                                className={`rounded-full border px-3 py-1 text-[12px] transition-colors ${
+                                  selected
+                                    ? "border-sb-blue bg-sb-card-blue text-sb-blue"
+                                    : "border-sb-border bg-white text-sb-muted"
+                                }`}
+                              >
+                                {specialty}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {!trade.isPrimary && (
+                      <div className="mt-3 flex items-center gap-4 border-t border-sb-border pt-3">
+                        <button
+                          type="button"
+                          onClick={() => makePrimary(trade.localId)}
+                          className="text-[13px] font-medium text-sb-blue"
+                        >
+                          Hacer principal
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeTrade(trade.localId)}
+                          className="text-[13px] font-medium text-sb-error"
+                        >
+                          Quitar
+                        </button>
+                      </div>
                     )}
                   </div>
-
-                  <div className="mt-3 flex items-center gap-3">
-                    <input
-                      type="number"
-                      min={0}
-                      max={80}
-                      placeholder="Años de experiencia"
-                      value={trade.yearsExperience}
-                      onChange={(e) =>
-                        updateTradeField(trade.localId, {
-                          yearsExperience: e.target.value,
-                        })
-                      }
-                      className="w-40 rounded-[8px] border border-sb-border px-3 py-2 text-[14px] text-sb-text focus:border-sb-blue focus:outline-none"
-                    />
-                    <span className="text-[13px] text-sb-muted">
-                      años de experiencia
-                    </span>
-                  </div>
-
-                  {!trade.isPrimary && (
-                    <div className="mt-3 flex items-center gap-4 border-t border-sb-border pt-3">
-                      <button
-                        type="button"
-                        onClick={() => makePrimary(trade.localId)}
-                        className="text-[13px] font-medium text-sb-blue"
-                      >
-                        Hacer principal
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeTrade(trade.localId)}
-                        className="text-[13px] font-medium text-sb-error"
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {trades.length < MAX_TRADES && (

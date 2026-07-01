@@ -5,7 +5,7 @@ import { SearchableProfessional } from "@/modules/professionals/types";
 import { ActiveTradeWithCategory } from "@/modules/trades/queries";
 import { ProfessionalSearchCard } from "./ProfessionalSearchCard";
 
-type SortOption = "rating" | "reviews" | "experience" | "recent";
+type SortOption = "index" | "rating" | "reviews" | "experience" | "recent";
 
 type Filters = {
   tradeSlugs: string[];
@@ -24,7 +24,7 @@ const DEFAULT_FILTERS: Filters = {
   minExperience: 0,
   minProfileScore: 0,
   verifiedOnly: false,
-  sortBy: "rating",
+  sortBy: "index",
 };
 
 const MIN_QUERY_LENGTH = 2;
@@ -51,6 +51,7 @@ const PROFILE_SCORE_OPTIONS: { label: string; value: number }[] = [
 ];
 
 const SORT_OPTIONS: { label: string; value: SortOption }[] = [
+  { label: "Índice SUPERBOB", value: "index" },
   { label: "Mejor calificados", value: "rating" },
   { label: "Más reseñas", value: "reviews" },
   { label: "Más experiencia", value: "experience" },
@@ -185,6 +186,8 @@ export function SearchResults({
 
     return [...result].sort((a, b) => {
       switch (filters.sortBy) {
+        case "index":
+          return b.superbobScore - a.superbobScore;
         case "rating":
           return b.averageRating - a.averageRating;
         case "reviews":
