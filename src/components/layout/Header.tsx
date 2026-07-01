@@ -7,7 +7,7 @@ import { getProfessionalSlugByUserId } from "@/modules/professionals/queries";
 import { Button } from "@/components/ui/Button";
 import { UserMenu } from "./UserMenu";
 
-export async function Header() {
+export async function Header({ unreadNotificationCount = 0 }: { unreadNotificationCount?: number } = {}) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   const [accountProfile, role, professionalSlug] = session
@@ -41,6 +41,7 @@ export async function Header() {
             avatarUrl={accountProfile.avatarUrl}
             professionalSlug={professionalSlug}
             isAdmin={role === "admin"}
+            unreadNotificationCount={unreadNotificationCount}
           />
         ) : (
           <Link href="/login">

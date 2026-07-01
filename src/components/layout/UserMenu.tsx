@@ -13,6 +13,7 @@ type UserMenuProps = {
   avatarUrl: string | null;
   professionalSlug: string | null;
   isAdmin: boolean;
+  unreadNotificationCount?: number;
 };
 
 export function UserMenu({
@@ -21,6 +22,7 @@ export function UserMenu({
   avatarUrl,
   professionalSlug,
   isAdmin,
+  unreadNotificationCount = 0,
 }: UserMenuProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -67,23 +69,28 @@ export function UserMenu({
       </div>
     )}
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-label="Menú de usuario"
-        className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-sb-card-blue text-sm font-semibold text-sb-blue"
-      >
-        {avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={avatarUrl}
-            alt={fullName}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          fullName.charAt(0).toUpperCase()
+      <span className="relative inline-flex">
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          aria-label="Menú de usuario"
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-sb-card-blue text-sm font-semibold text-sb-blue"
+        >
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={fullName}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            fullName.charAt(0).toUpperCase()
+          )}
+        </button>
+        {!isOpen && unreadNotificationCount > 0 && (
+          <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-sb-error ring-2 ring-white" />
         )}
-      </button>
+      </span>
 
     {isOpen && (
         <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-sb-border bg-white p-2 shadow-[0_4px_20px_rgba(0,0,0,0.12)]">
@@ -107,9 +114,14 @@ export function UserMenu({
             <Link
               href="/notifications"
               onClick={() => setIsOpen(false)}
-              className="rounded-lg px-3 py-2 text-[15px] text-sb-text hover:bg-sb-card-blue"
+              className="flex items-center justify-between rounded-lg px-3 py-2 text-[15px] text-sb-text hover:bg-sb-card-blue"
             >
               Mis notificaciones
+              {unreadNotificationCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-sb-blue px-1 text-[11px] font-semibold text-white">
+                  {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                </span>
+              )}
             </Link>
             {professionalSlug && !isAdmin && (
               <>

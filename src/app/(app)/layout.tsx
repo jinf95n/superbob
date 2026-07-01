@@ -38,7 +38,7 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen bg-sb-bg sm:h-screen sm:flex sm:flex-col sm:overflow-hidden">
       <div className="shrink-0">
-        <Header />
+        <Header unreadNotificationCount={unreadCount} />
       </div>
       <div className="flex flex-1 sm:overflow-hidden">
         <AppSidebar hasProfessionalProfile={hasProfessionalProfile} unreadNotificationCount={unreadCount} />

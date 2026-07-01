@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { getNotificationsForUser } from "@/modules/notifications/queries";
-import { NotificationItem } from "./NotificationItem";
+import { NotificationList } from "./NotificationList";
 
 export default async function NotificationsPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -23,10 +23,8 @@ export default async function NotificationsPage() {
           Todavía no tenés notificaciones.
         </p>
       ) : (
-        <div className="mt-6 flex flex-col gap-2">
-          {notifications.map((notification) => (
-            <NotificationItem key={notification.id} notification={notification} />
-          ))}
+        <div className="mt-6">
+          <NotificationList notifications={notifications} />
         </div>
       )}
     </main>
