@@ -61,3 +61,12 @@ export async function markNotificationReadAction(
 
   return {};
 }
+
+export async function markAllNotificationsReadAction(): Promise<void> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return;
+  await prisma.notification.updateMany({
+    where: { userId: session.user.id, readAt: null },
+    data: { readAt: new Date() },
+  });
+}

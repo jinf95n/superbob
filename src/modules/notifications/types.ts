@@ -13,6 +13,11 @@ export type MarkNotificationReadActionState = {
 export type NotificationPayload = {
   message: string;
   actionUrl?: string;
+  // Solo presentes en notificaciones de moderación de reseñas
+  reviewRating?: number;
+  reviewComment?: string | null;
+  reviewTradeName?: string;
+  reviewType?: string;
 };
 
 export type NotificationListItem = {

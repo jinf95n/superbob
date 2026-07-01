@@ -818,6 +818,10 @@ export async function suspendReviewAction(
       id: true,
       suspendedAt: true,
       deletedAt: true,
+      rating: true,
+      comment: true,
+      type: true,
+      trade: { select: { name: true } },
       reviewedProfessional: { select: { userId: true } },
     },
   });
@@ -843,6 +847,10 @@ export async function suspendReviewAction(
       message:
         "Una reseña en tu perfil fue suspendida temporalmente mientras revisamos un reporte. Si tenés preguntas, contactanos.",
       actionUrl: "/professional/reviews",
+      reviewRating: review.rating,
+      reviewComment: review.comment,
+      reviewTradeName: review.trade.name,
+      reviewType: review.type,
     },
   );
 
@@ -866,6 +874,10 @@ export async function liftReviewSuspensionAction(
     select: {
       id: true,
       suspendedAt: true,
+      rating: true,
+      comment: true,
+      type: true,
+      trade: { select: { name: true } },
       reviewedProfessional: { select: { userId: true } },
     },
   });
@@ -889,6 +901,10 @@ export async function liftReviewSuspensionAction(
     {
       message: "La reseña suspendida en tu perfil volvió a estar visible.",
       actionUrl: "/professional/reviews",
+      reviewRating: review.rating,
+      reviewComment: review.comment,
+      reviewTradeName: review.trade.name,
+      reviewType: review.type,
     },
   );
 
@@ -912,6 +928,10 @@ export async function deleteReviewAction(
     select: {
       id: true,
       deletedAt: true,
+      rating: true,
+      comment: true,
+      type: true,
+      trade: { select: { name: true } },
       reviewedProfessional: { select: { userId: true } },
     },
   });
@@ -936,6 +956,10 @@ export async function deleteReviewAction(
       message:
         "Una reseña en tu perfil fue eliminada por no cumplir las normas de la comunidad.",
       actionUrl: "/professional/reviews",
+      reviewRating: review.rating,
+      reviewComment: review.comment,
+      reviewTradeName: review.trade.name,
+      reviewType: review.type,
     },
   );
 

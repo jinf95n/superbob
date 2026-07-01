@@ -1,13 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { markNotificationReadAction } from "@/modules/notifications/actions";
 import { NotificationListItem } from "@/modules/notifications/types";
-
-type NotificationItemProps = {
-  notification: NotificationListItem;
-};
 
 function getNotificationMessage(notification: NotificationListItem): string {
   switch (notification.type) {
@@ -24,38 +17,24 @@ function getNotificationMessage(notification: NotificationListItem): string {
   }
 }
 
-export function NotificationItem({ notification }: NotificationItemProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
-  const isUnread = !notification.readAt;
-  const message = getNotificationMessage(notification);
-  const actionUrl = notification.payload?.actionUrl;
+type Props = {
+  notification: NotificationListItem;
+  isUnread: boolean;
+  onOpen: (notification: NotificationListItem) => void;
+};
 
-  function handleClick() {
-    if (actionUrl) {
-      startTransition(async () => {
-        await markNotificationReadAction({ notificationId: notification.id });
-      });
-      router.push(actionUrl);
-    } else {
-      startTransition(async () => {
-        await markNotificationReadAction({ notificationId: notification.id });
-        router.refresh();
-      });
-    }
-  }
-
+export function NotificationItem({ notification, isUnread, onOpen }: Props) {
   return (
     <button
       type="button"
-      onClick={handleClick}
-      className={`w-full rounded-2xl p-4 text-left text-[15px] ${
+      onClick={() => onOpen(notification)}
+      className={`w-full rounded-2xl p-4 text-left text-[15px] transition-colors hover:opacity-90 ${
         isUnread
           ? "bg-sb-card-blue font-medium text-sb-text"
           : "bg-white text-sb-muted"
       }`}
     >
-      <p>{message}</p>
+      <p>{getNotificationMessage(notification)}</p>
       <p className="mt-1 text-sm text-sb-muted">
         {notification.createdAt.toLocaleDateString("es-AR")}
       </p>
