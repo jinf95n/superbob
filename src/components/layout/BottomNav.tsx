@@ -45,9 +45,10 @@ type NavItem = {
 
 type BottomNavProps = {
   hasProfessionalProfile?: boolean;
+  unreadNotificationCount?: number;
 };
 
-export function BottomNav({ hasProfessionalProfile }: BottomNavProps) {
+export function BottomNav({ hasProfessionalProfile, unreadNotificationCount = 0 }: BottomNavProps) {
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
 
@@ -80,12 +81,17 @@ export function BottomNav({ hasProfessionalProfile }: BottomNavProps) {
     ? [baseItems[0], proItem, baseItems[1], baseItems[2]]
     : baseItems;
 
+  const badgeLabel =
+    unreadNotificationCount > 9 ? "9+" : String(unreadNotificationCount);
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-10 flex border-t border-sb-border bg-white sm:hidden">
       {items.map((item) => {
         const isActive = item.exact
           ? pathname === item.href
           : pathname.startsWith(item.href);
+        const showBadge =
+          item.href === "/notifications" && unreadNotificationCount > 0;
         return (
           <Link
             key={item.label}
@@ -94,8 +100,13 @@ export function BottomNav({ hasProfessionalProfile }: BottomNavProps) {
               isActive ? "text-sb-blue" : "text-sb-muted"
             }`}
           >
-            <span className="flex h-5 w-5 items-center justify-center">
+            <span className="relative flex h-5 w-5 items-center justify-center">
               {item.icon}
+              {showBadge && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sb-blue px-0.5 text-[9px] font-bold text-white">
+                  {badgeLabel}
+                </span>
+              )}
             </span>
             {item.label}
           </Link>

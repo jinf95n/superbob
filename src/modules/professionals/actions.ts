@@ -10,6 +10,12 @@ import {
   CreateProfessionalProfileActionState,
   CreateProfessionalProfileInput,
   CreateProfessionalProfileSchema,
+  CreateSanctionActionState,
+  CreateSanctionInput,
+  CreateSanctionSchema,
+  SetBoostActionState,
+  SetBoostInput,
+  SetBoostSchema,
   UpdateProfessionalStatusActionState,
 } from "./types";
 
@@ -148,6 +154,83 @@ export async function updateProfessionalVerifiedStatusAction(
   });
 
   return {};
+}
+
+export async function createSanctionAction(
+  input: CreateSanctionInput,
+): Promise<CreateSanctionActionState> {
+  const session = await requireAdminSession();
+  if ("error" in session) {
+    return { error: session.error };
+  }
+
+  const parsed = CreateSanctionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const { professionalId, type, reason, expiresAt, confirmName } = parsed.data;
+
+  if (type === "permanent_deactivation") {
+    const professional = await prisma.professionalProfile.findUnique({
+      where: { id: professionalId },
+      select: { user: { select: { fullName: true } } },
+    });
+    if (!professional) {
+      return { error: "Profesional no encontrado" };
+    }
+    if (
+      confirmName?.trim().toLowerCase() !==
+      professional.user.fullName.trim().toLowerCase()
+    ) {
+      return { error: "El nombre ingresado no coincide con el del profesional" };
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.professionalSanction.create({
+      data: {
+        professionalId,
+        type,
+        reason,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      },
+    });
+
+    if (type === "permanent_deactivation") {
+      await tx.professionalProfile.update({
+        where: { id: professionalId },
+        data: { isActive: false },
+      });
+    }
+  });
+
+  return { success: true };
+}
+
+export async function setBoostAction(
+  input: SetBoostInput,
+): Promise<SetBoostActionState> {
+  const session = await requireAdminSession();
+  if ("error" in session) {
+    return { error: session.error };
+  }
+
+  const parsed = SetBoostSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+  }
+
+  const { professionalId, boostUntil } = parsed.data;
+
+  await prisma.professionalProfile.update({
+    where: { id: professionalId },
+    data: {
+      newProfessionalBoostUntil: boostUntil ? new Date(boostUntil) : null,
+    },
+  });
+
+  return { success: true };
 }
 
 export async function updateProfessionalProfileAction(

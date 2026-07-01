@@ -192,6 +192,20 @@ export type WorkRecordForNewReviewPage = {
   alreadyReviewed: boolean;
 };
 
+// =============================================================================
+// Admin — moderación de reseñas
+// =============================================================================
+
+export const ModerateReviewSchema = z.object({
+  reviewId: z.string().uuid(),
+  reason: z
+    .string()
+    .min(3, "Ingresá un motivo de al menos 3 caracteres")
+    .max(1000, "Máximo 1000 caracteres"),
+});
+export type ModerateReviewInput = z.infer<typeof ModerateReviewSchema>;
+export type ModerateReviewActionState = { error?: string; success?: boolean };
+
 export type DisputeContextForAdmin = {
   workRecord: {
     id: string;

@@ -64,14 +64,19 @@ const proNavItem: NavItem = {
 
 export function AppSidebar({
   hasProfessionalProfile,
+  unreadNotificationCount,
 }: {
   hasProfessionalProfile: boolean;
+  unreadNotificationCount: number;
 }) {
   const pathname = usePathname();
 
   const items = hasProfessionalProfile
     ? [...baseNavItems, proNavItem]
     : baseNavItems;
+
+  const badgeLabel =
+    unreadNotificationCount > 9 ? "9+" : String(unreadNotificationCount);
 
   return (
     <aside className="hidden sm:flex w-56 lg:w-64 shrink-0 flex-col border-r border-sb-border bg-white overflow-y-auto">
@@ -80,6 +85,8 @@ export function AppSidebar({
           const isActive = item.exact
             ? pathname === item.href
             : pathname.startsWith(item.href);
+          const showBadge =
+            item.href === "/notifications" && unreadNotificationCount > 0;
           return (
             <Link
               key={item.href}
@@ -92,6 +99,11 @@ export function AppSidebar({
             >
               {item.icon}
               {item.label}
+              {showBadge && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-sb-blue px-1 text-[11px] font-semibold text-white">
+                  {badgeLabel}
+                </span>
+              )}
             </Link>
           );
         })}

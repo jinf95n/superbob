@@ -43,6 +43,9 @@ import {
   ResolveDisputeActionState,
   ResolveDisputeInput,
   ResolveDisputeSchema,
+  ModerateReviewActionState,
+  ModerateReviewInput,
+  ModerateReviewSchema,
 } from "./types";
 
 // Verifica que el usuario tenga el email verificado. Retorna mensaje de error o null.
@@ -781,6 +784,160 @@ export async function resolveDisputeAction(
       }),
     ]);
   }
+
+  return { success: true };
+}
+
+// =============================================================================
+// Admin — moderación de reseñas
+// =============================================================================
+
+async function requireAdminId(): Promise<{ id: string } | null> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return null;
+  const role = await getUserRole(session.user.id);
+  if (role !== "admin") return null;
+  return { id: session.user.id };
+}
+
+export async function suspendReviewAction(
+  input: ModerateReviewInput,
+): Promise<ModerateReviewActionState> {
+  const admin = await requireAdminId();
+  if (!admin) return { error: "No tenés permisos para realizar esta acción" };
+
+  const parsed = ModerateReviewSchema.safeParse(input);
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+
+  const { reviewId, reason } = parsed.data;
+
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+    select: {
+      id: true,
+      suspendedAt: true,
+      deletedAt: true,
+      reviewedProfessional: { select: { userId: true } },
+    },
+  });
+
+  if (!review) return { error: "No encontramos esa reseña" };
+  if (review.deletedAt) return { error: "La reseña ya fue eliminada" };
+  if (review.suspendedAt) return { error: "La reseña ya está suspendida" };
+
+  await prisma.$transaction([
+    prisma.review.update({
+      where: { id: reviewId },
+      data: { suspendedAt: new Date() },
+    }),
+    prisma.reviewModerationEvent.create({
+      data: { reviewId, adminId: admin.id, action: "suspend", reason },
+    }),
+  ]);
+
+  await createNotification(
+    review.reviewedProfessional.userId,
+    "review_suspended",
+    {
+      message:
+        "Una reseña en tu perfil fue suspendida temporalmente mientras revisamos un reporte. Si tenés preguntas, contactanos.",
+      actionUrl: "/professional/reviews",
+    },
+  );
+
+  return { success: true };
+}
+
+export async function liftReviewSuspensionAction(
+  input: ModerateReviewInput,
+): Promise<ModerateReviewActionState> {
+  const admin = await requireAdminId();
+  if (!admin) return { error: "No tenés permisos para realizar esta acción" };
+
+  const parsed = ModerateReviewSchema.safeParse(input);
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+
+  const { reviewId, reason } = parsed.data;
+
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+    select: {
+      id: true,
+      suspendedAt: true,
+      reviewedProfessional: { select: { userId: true } },
+    },
+  });
+
+  if (!review) return { error: "No encontramos esa reseña" };
+  if (!review.suspendedAt) return { error: "La reseña no está suspendida" };
+
+  await prisma.$transaction([
+    prisma.review.update({
+      where: { id: reviewId },
+      data: { suspendedAt: null },
+    }),
+    prisma.reviewModerationEvent.create({
+      data: { reviewId, adminId: admin.id, action: "unsuspend", reason },
+    }),
+  ]);
+
+  await createNotification(
+    review.reviewedProfessional.userId,
+    "review_unsuspended",
+    {
+      message: "La reseña suspendida en tu perfil volvió a estar visible.",
+      actionUrl: "/professional/reviews",
+    },
+  );
+
+  return { success: true };
+}
+
+export async function deleteReviewAction(
+  input: ModerateReviewInput,
+): Promise<ModerateReviewActionState> {
+  const admin = await requireAdminId();
+  if (!admin) return { error: "No tenés permisos para realizar esta acción" };
+
+  const parsed = ModerateReviewSchema.safeParse(input);
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
+
+  const { reviewId, reason } = parsed.data;
+
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+    select: {
+      id: true,
+      deletedAt: true,
+      reviewedProfessional: { select: { userId: true } },
+    },
+  });
+
+  if (!review) return { error: "No encontramos esa reseña" };
+  if (review.deletedAt) return { error: "La reseña ya fue eliminada" };
+
+  await prisma.$transaction([
+    prisma.review.update({
+      where: { id: reviewId },
+      data: { deletedAt: new Date() },
+    }),
+    prisma.reviewModerationEvent.create({
+      data: { reviewId, adminId: admin.id, action: "delete", reason },
+    }),
+  ]);
+
+  await createNotification(
+    review.reviewedProfessional.userId,
+    "review_deleted",
+    {
+      message:
+        "Una reseña en tu perfil fue eliminada por no cumplir las normas de la comunidad.",
+      actionUrl: "/professional/reviews",
+    },
+  );
 
   return { success: true };
 }

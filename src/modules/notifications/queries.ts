@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { NotificationListItem, NotificationPayload } from "./types";
 
+export async function getUnreadNotificationCount(
+  userId: string,
+): Promise<number> {
+  return prisma.notification.count({ where: { userId, readAt: null } });
+}
+
 export async function getNotificationsForUser(
   userId: string,
 ): Promise<NotificationListItem[]> {

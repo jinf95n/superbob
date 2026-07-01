@@ -32,11 +32,16 @@ export function NotificationItem({ notification }: NotificationItemProps) {
   const actionUrl = notification.payload?.actionUrl;
 
   function handleClick() {
-    startTransition(async () => {
-      await markNotificationReadAction({ notificationId: notification.id });
-    });
     if (actionUrl) {
+      startTransition(async () => {
+        await markNotificationReadAction({ notificationId: notification.id });
+      });
       router.push(actionUrl);
+    } else {
+      startTransition(async () => {
+        await markNotificationReadAction({ notificationId: notification.id });
+        router.refresh();
+      });
     }
   }
 
