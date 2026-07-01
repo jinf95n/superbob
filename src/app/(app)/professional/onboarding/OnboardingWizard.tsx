@@ -11,10 +11,12 @@ import { useServerAction } from "@/lib/hooks/useServerAction";
 import { BioBuilder } from "@/components/shared/BioBuilder";
 import { PortfolioPhotoManager } from "@/components/shared/PortfolioPhotoManager";
 import { ProfessionalBio, parseBio, serializeBio } from "@/lib/bioTypes";
+import { getSpecialtiesForTrade } from "@/lib/tradeSpecialties";
 
 type SecondaryTradeRow = {
   tradeId: string;
   yearsExperience: string;
+  specialties: string[];
 };
 
 type OnboardingWizardProps = {
@@ -47,6 +49,7 @@ export function OnboardingWizard({
   // Paso 2
   const [primaryTradeId, setPrimaryTradeId] = useState("");
   const [primaryYearsExperience, setPrimaryYearsExperience] = useState("");
+  const [primarySpecialties, setPrimarySpecialties] = useState<string[]>([]);
   const [secondaryTrades, setSecondaryTrades] = useState<SecondaryTradeRow[]>(
     [],
   );
@@ -77,6 +80,17 @@ export function OnboardingWizard({
     },
   });
 
+  // Lookup tradeId → { name, slug } para obtener especialidades disponibles
+  const tradeLookup = useMemo(() => {
+    const map = new Map<string, { name: string }>();
+    for (const category of tradeCategories) {
+      for (const trade of category.trades) {
+        map.set(trade.id, { name: trade.name });
+      }
+    }
+    return map;
+  }, [tradeCategories]);
+
   const departmentLookup = useMemo(() => {
     const map = new Map<string, { name: string; provinceName: string }>();
     for (const province of provinces) {
@@ -91,6 +105,10 @@ export function OnboardingWizard({
   }, [provinces]);
 
   const currentProvince = provinces.find((p) => p.id === currentProvinceId);
+
+  const primaryTradeSpecialties = primaryTradeId
+    ? getSpecialtiesForTrade(tradeLookup.get(primaryTradeId)?.name ?? "")
+    : [];
 
   function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -127,7 +145,7 @@ export function OnboardingWizard({
     if (secondaryTrades.length >= MAX_SECONDARY_TRADES) return;
     setSecondaryTrades((prev) => [
       ...prev,
-      { tradeId: "", yearsExperience: "" },
+      { tradeId: "", yearsExperience: "", specialties: [] },
     ]);
   }
 
@@ -136,7 +154,29 @@ export function OnboardingWizard({
     patch: Partial<SecondaryTradeRow>,
   ) {
     setSecondaryTrades((prev) =>
-      prev.map((trade, i) => (i === index ? { ...trade, ...patch } : trade)),
+      prev.map((trade, i) => {
+        if (i !== index) return trade;
+        // Si cambia el oficio, resetear especialidades
+        if (patch.tradeId !== undefined && patch.tradeId !== trade.tradeId) {
+          return { ...trade, ...patch, specialties: [] };
+        }
+        return { ...trade, ...patch };
+      }),
+    );
+  }
+
+  function toggleSecondarySpecialty(index: number, specialty: string) {
+    setSecondaryTrades((prev) =>
+      prev.map((trade, i) => {
+        if (i !== index) return trade;
+        const has = trade.specialties.includes(specialty);
+        return {
+          ...trade,
+          specialties: has
+            ? trade.specialties.filter((s) => s !== specialty)
+            : [...trade.specialties, specialty],
+        };
+      }),
     );
   }
 
@@ -187,11 +227,13 @@ export function OnboardingWizard({
       contactPhone,
       primaryTradeId,
       primaryYearsExperience: primaryYearsExperience || undefined,
+      primarySpecialties,
       secondaryTrades: secondaryTrades
         .filter((trade) => trade.tradeId)
         .map((trade) => ({
           tradeId: trade.tradeId,
           yearsExperience: trade.yearsExperience || undefined,
+          specialties: trade.specialties,
         })),
       departmentIds: Array.from(selectedDepartmentIds),
     });
@@ -301,7 +343,10 @@ export function OnboardingWizard({
             <select
               id="primaryTrade"
               value={primaryTradeId}
-              onChange={(e) => setPrimaryTradeId(e.target.value)}
+              onChange={(e) => {
+                setPrimaryTradeId(e.target.value);
+                setPrimarySpecialties([]);
+              }}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
             >
               <option value="">Elegí un oficio</option>
@@ -331,6 +376,39 @@ export function OnboardingWizard({
               onChange={(e) => setPrimaryYearsExperience(e.target.value)}
               className="mt-1 w-full rounded border border-neutral-300 px-3 py-2"
             />
+
+            {primaryTradeSpecialties.length > 0 && (
+              <div className="mt-3">
+                <p className="text-[13px] font-medium text-neutral-600">
+                  Especialidades <span className="font-normal text-neutral-400">(opcional)</span>
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {primaryTradeSpecialties.map((specialty) => {
+                    const selected = primarySpecialties.includes(specialty);
+                    return (
+                      <button
+                        key={specialty}
+                        type="button"
+                        onClick={() => {
+                          setPrimarySpecialties((prev) =>
+                            selected
+                              ? prev.filter((s) => s !== specialty)
+                              : [...prev, specialty],
+                          );
+                        }}
+                        className={`rounded-full border px-3 py-1 text-[13px] transition-colors ${
+                          selected
+                            ? "border-sb-blue bg-sb-card-blue text-sb-blue"
+                            : "border-neutral-300 bg-white text-neutral-600"
+                        }`}
+                      >
+                        {specialty}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -338,53 +416,84 @@ export function OnboardingWizard({
               Oficios secundarios (hasta {MAX_SECONDARY_TRADES})
             </p>
             <div className="mt-2 flex flex-col gap-3">
-              {secondaryTrades.map((trade, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col gap-2 rounded border border-neutral-200 p-3"
-                >
-                  <select
-                    value={trade.tradeId}
-                    onChange={(e) =>
-                      updateSecondaryTrade(index, { tradeId: e.target.value })
-                    }
-                    className="w-full rounded border border-neutral-300 px-3 py-2"
+              {secondaryTrades.map((trade, index) => {
+                const availableSpecialties = trade.tradeId
+                  ? getSpecialtiesForTrade(tradeLookup.get(trade.tradeId)?.name ?? "")
+                  : [];
+                return (
+                  <div
+                    key={index}
+                    className="flex flex-col gap-2 rounded border border-neutral-200 p-3"
                   >
-                    <option value="">Elegí un oficio</option>
-                    {tradeCategories.map((category) => (
-                      <optgroup key={category.id} label={category.name}>
-                        {category.trades.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={80}
-                      placeholder="Años de experiencia"
-                      value={trade.yearsExperience}
+                    <select
+                      value={trade.tradeId}
                       onChange={(e) =>
-                        updateSecondaryTrade(index, {
-                          yearsExperience: e.target.value,
-                        })
+                        updateSecondaryTrade(index, { tradeId: e.target.value })
                       }
-                      className="flex-1 rounded border border-neutral-300 px-3 py-2"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeSecondaryTrade(index)}
-                      className="text-sm text-red-600"
+                      className="w-full rounded border border-neutral-300 px-3 py-2"
                     >
-                      Quitar
-                    </button>
+                      <option value="">Elegí un oficio</option>
+                      {tradeCategories.map((category) => (
+                        <optgroup key={category.id} label={category.name}>
+                          {category.trades.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={80}
+                        placeholder="Años de experiencia"
+                        value={trade.yearsExperience}
+                        onChange={(e) =>
+                          updateSecondaryTrade(index, {
+                            yearsExperience: e.target.value,
+                          })
+                        }
+                        className="flex-1 rounded border border-neutral-300 px-3 py-2"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSecondaryTrade(index)}
+                        className="text-sm text-red-600"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    {availableSpecialties.length > 0 && (
+                      <div>
+                        <p className="text-[12px] font-medium text-neutral-500">
+                          Especialidades <span className="font-normal text-neutral-400">(opcional)</span>
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {availableSpecialties.map((specialty) => {
+                            const selected = trade.specialties.includes(specialty);
+                            return (
+                              <button
+                                key={specialty}
+                                type="button"
+                                onClick={() => toggleSecondarySpecialty(index, specialty)}
+                                className={`rounded-full border px-2.5 py-0.5 text-[12px] transition-colors ${
+                                  selected
+                                    ? "border-sb-blue bg-sb-card-blue text-sb-blue"
+                                    : "border-neutral-300 bg-white text-neutral-600"
+                                }`}
+                              >
+                                {specialty}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {secondaryTrades.length < MAX_SECONDARY_TRADES && (

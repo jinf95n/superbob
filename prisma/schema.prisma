@@ -186,6 +186,7 @@ model ProfessionalTrade {
   tradeId         String   @map("trade_id")
   isPrimary       Boolean  @default(false) @map("is_primary")
   yearsExperience Int?     @map("years_experience")
+  specialties     String[] @default([])
   createdAt       DateTime @default(now()) @map("created_at")
 
   professional ProfessionalProfile @relation(fields: [professionalId], references: [id])

@@ -42,6 +42,13 @@ export function SuperbobScoreCard({ breakdown }: SuperbobScoreCardProps) {
         ? "bg-sb-blue"
         : "bg-sb-warning";
 
+  const totalTextColor =
+    breakdown.total >= 80
+      ? "text-sb-success"
+      : breakdown.total >= 60
+        ? "text-sb-blue"
+        : "text-sb-warning";
+
   return (
     <div className="rounded-2xl border border-sb-border bg-white p-5">
       <button
@@ -57,7 +64,7 @@ export function SuperbobScoreCard({ breakdown }: SuperbobScoreCardProps) {
             {scoreLabel(breakdown.total)}
           </span>
         </div>
-        <span className="font-display shrink-0 text-[18px] font-bold text-sb-text">
+        <span className={`font-display shrink-0 text-[18px] font-bold ${totalTextColor}`}>
           {breakdown.total}
           <span className="text-[14px] font-normal text-sb-muted">/100</span>
         </span>
@@ -72,24 +79,33 @@ export function SuperbobScoreCard({ breakdown }: SuperbobScoreCardProps) {
 
       {isOpen && (
         <div className="mt-5 flex flex-col gap-4">
-          {breakdown.components.map((component) => (
-            <div key={component.label}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[14px] text-sb-text">
-                  {component.emoji} {component.label}
-                </span>
-                <span className="shrink-0 text-[13px] font-medium tabular-nums text-sb-muted">
-                  {component.value}/{component.max} pts
-                </span>
+          {breakdown.components.map((component) => {
+            const pct = component.max > 0 ? (component.value / component.max) * 100 : 0;
+            const componentTextColor =
+              component.value === component.max
+                ? "text-sb-success"
+                : pct >= 60
+                  ? "text-sb-blue"
+                  : "text-sb-warning";
+            return (
+              <div key={component.label}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[14px] text-sb-text">
+                    {component.emoji} {component.label}
+                  </span>
+                  <span className={`shrink-0 text-[13px] font-bold tabular-nums ${componentTextColor}`}>
+                    {component.value}/{component.max} pts
+                  </span>
+                </div>
+                <ComponentBar value={component.value} max={component.max} />
+                {component.hint && (
+                  <p className="mt-1.5 text-[12px] leading-relaxed text-sb-muted">
+                    {component.hint}
+                  </p>
+                )}
               </div>
-              <ComponentBar value={component.value} max={component.max} />
-              {component.hint && (
-                <p className="mt-1.5 text-[12px] leading-relaxed text-sb-muted">
-                  {component.hint}
-                </p>
-              )}
-            </div>
-          ))}
+            );
+          })}
 
           <p className="border-t border-sb-border pt-3 text-[12px] leading-relaxed text-sb-muted">
             El índice mide tu posicionamiento real en la plataforma. Actualizá

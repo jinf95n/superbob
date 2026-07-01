@@ -98,27 +98,37 @@ export default async function ProfessionalPublicProfilePage({
             {professional.trades.map((trade) => (
               <li
                 key={trade.tradeId}
-                className="flex items-center justify-between gap-3 rounded-card border border-sb-border p-3"
+                className="rounded-card border border-sb-border p-3"
               >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[15px] font-medium text-sb-text">
-                      {trade.name}
-                    </p>
-                    {trade.isPrimary && (
-                      <span className="rounded-full bg-sb-card-orange px-2 py-0.5 text-[12px] font-medium text-sb-orange">
-                        Principal
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-[13px] text-sb-muted">
-                    {trade.yearsExperience != null
-                      ? `${trade.yearsExperience} año${trade.yearsExperience === 1 ? "" : "s"} de experiencia · `
-                      : ""}
-                    {trade.completedWorkCount} trabajo
-                    {trade.completedWorkCount === 1 ? "" : "s"} en plataforma
+                <div className="flex items-center gap-2">
+                  <p className="text-[15px] font-medium text-sb-text">
+                    {trade.name}
                   </p>
+                  {trade.isPrimary && (
+                    <span className="rounded-full bg-sb-card-orange px-2 py-0.5 text-[12px] font-medium text-sb-orange">
+                      Principal
+                    </span>
+                  )}
                 </div>
+                <p className="mt-0.5 text-[13px] text-sb-muted">
+                  {trade.yearsExperience != null
+                    ? `${trade.yearsExperience} año${trade.yearsExperience === 1 ? "" : "s"} de experiencia · `
+                    : ""}
+                  {trade.completedWorkCount} trabajo
+                  {trade.completedWorkCount === 1 ? "" : "s"} en plataforma
+                </p>
+                {trade.specialties.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {trade.specialties.map((specialty) => (
+                      <span
+                        key={specialty}
+                        className="rounded-full border border-sb-border bg-sb-bg px-2.5 py-0.5 text-[12px] text-sb-muted"
+                      >
+                        {specialty}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -276,7 +286,7 @@ export default async function ProfessionalPublicProfilePage({
               {/* Métricas compactas — solo desktop */}
               <div className="hidden border-t border-sb-border px-5 py-4 lg:grid lg:grid-cols-3">
                 <div className="text-center">
-                  <p className="font-display text-xl font-bold text-sb-text">
+                  <p className="font-display text-xl font-bold text-sb-orange">
                     {professional.weightedScore !== null
                       ? professional.weightedScore.toFixed(1)
                       : "—"}
@@ -284,13 +294,13 @@ export default async function ProfessionalPublicProfilePage({
                   <p className="mt-0.5 text-xs text-sb-muted">calificación</p>
                 </div>
                 <div className="border-x border-sb-border text-center">
-                  <p className="font-display text-xl font-bold text-sb-text">
+                  <p className="font-display text-xl font-bold text-sb-blue">
                     {professional.publishedReviewsCount}
                   </p>
                   <p className="mt-0.5 text-xs text-sb-muted">reseñas</p>
                 </div>
                 <div className="text-center">
-                  <p className="font-display text-xl font-bold text-sb-text">
+                  <p className="font-display text-xl font-bold text-sb-success">
                     {professional.completedWorkRecordsCount}
                   </p>
                   <p className="mt-0.5 text-xs text-sb-muted">trabajos</p>
@@ -304,15 +314,26 @@ export default async function ProfessionalPublicProfilePage({
                     Oficios
                   </p>
                   {professional.trades.map((trade) => (
-                    <div
-                      key={trade.tradeId}
-                      className="flex items-center justify-between py-1.5"
-                    >
-                      <span className="text-sm text-sb-text">{trade.name}</span>
-                      {trade.isPrimary && (
-                        <span className="rounded-full bg-sb-card-blue px-2 py-0.5 text-[11px] font-medium text-sb-blue">
-                          Principal
-                        </span>
+                    <div key={trade.tradeId} className="py-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-sb-text">{trade.name}</span>
+                        {trade.isPrimary && (
+                          <span className="rounded-full bg-sb-card-blue px-2 py-0.5 text-[11px] font-medium text-sb-blue">
+                            Principal
+                          </span>
+                        )}
+                      </div>
+                      {trade.specialties.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {trade.specialties.map((specialty) => (
+                            <span
+                              key={specialty}
+                              className="rounded-full border border-sb-border bg-sb-bg px-2 py-0.5 text-[11px] text-sb-muted"
+                            >
+                              {specialty}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -367,7 +388,7 @@ export default async function ProfessionalPublicProfilePage({
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {professional.weightedScore !== null && (
                     <div className="rounded-card bg-sb-bg p-4">
-                      <p className="font-display text-[24px] font-extrabold text-sb-text">
+                      <p className="font-display text-[24px] font-extrabold text-sb-orange">
                         {professional.weightedScore.toFixed(1)}
                       </p>
                       <p aria-hidden="true" className="mt-0.5 text-sb-orange">
@@ -381,7 +402,7 @@ export default async function ProfessionalPublicProfilePage({
                     </div>
                   )}
                   <div className="rounded-card bg-sb-bg p-4">
-                    <p className="font-display text-[24px] font-extrabold text-sb-text">
+                    <p className="font-display text-[24px] font-extrabold text-sb-blue">
                       {professional.completedWorkRecordsCount}
                     </p>
                     <p className="mt-1 text-[13px] text-sb-muted">
@@ -391,7 +412,7 @@ export default async function ProfessionalPublicProfilePage({
                   </div>
                   {professional.satisfactionRate !== null && (
                     <div className="rounded-card bg-sb-bg p-4">
-                      <p className="font-display text-[24px] font-extrabold text-sb-text">
+                      <p className="font-display text-[24px] font-extrabold text-sb-success">
                         {professional.satisfactionRate}%
                       </p>
                       <p className="mt-1 text-[13px] text-sb-muted">
@@ -401,7 +422,7 @@ export default async function ProfessionalPublicProfilePage({
                   )}
                   {primaryTradeExperience != null && (
                     <div className="rounded-card bg-sb-bg p-4">
-                      <p className="font-display text-[24px] font-extrabold text-sb-text">
+                      <p className="font-display text-[24px] font-extrabold text-sb-orange">
                         {primaryTradeExperience}
                       </p>
                       <p className="mt-1 text-[13px] text-sb-muted">

@@ -58,13 +58,14 @@ function MetricCard({
   value: string | number;
   label: string;
   sublabel?: string;
-  color?: "default" | "blue" | "green" | "muted";
+  color?: "default" | "blue" | "green" | "orange" | "muted";
   emoji: string;
 }) {
   const valueColor = {
     default: "text-sb-text",
     blue: "text-sb-blue",
     green: "text-sb-success",
+    orange: "text-sb-orange",
     muted: "text-sb-muted",
   }[color];
 
@@ -161,6 +162,7 @@ export default async function DashboardPage() {
             value={metrics.reviewsReceived}
             label="Reseñas recibidas"
             sublabel="publicadas en tu perfil"
+            color="orange"
           />
           <MetricCard
             emoji="🔄"
@@ -310,7 +312,7 @@ export default async function DashboardPage() {
       {/* Stats rápidas */}
       <div className="mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-white p-5">
-          <p className="font-display text-[32px] font-bold leading-none tabular-nums text-sb-text">
+          <p className="font-display text-[32px] font-bold leading-none tabular-nums text-sb-blue">
             {userStats.contactsCount}
           </p>
           <p className="mt-2 text-[13px] text-sb-muted">
@@ -319,7 +321,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="rounded-2xl bg-white p-5">
-          <p className="font-display text-[32px] font-bold leading-none tabular-nums text-sb-text">
+          <p className="font-display text-[32px] font-bold leading-none tabular-nums text-sb-success">
             {userStats.reviewsGiven}
           </p>
           <p className="mt-2 text-[13px] text-sb-muted">

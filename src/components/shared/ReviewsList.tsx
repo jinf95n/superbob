@@ -53,7 +53,7 @@ export function ReviewsList({
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-8">
         <div className="flex items-center gap-3">
-          <span className="font-display text-[40px] font-extrabold text-sb-text">
+          <span className="font-display text-[40px] font-extrabold text-sb-orange">
             {weightedScore.toFixed(1)}
           </span>
           <div>
@@ -94,15 +94,36 @@ export function ReviewsList({
             className="rounded-card border border-sb-border bg-white p-4"
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="font-display text-[15px] font-semibold text-sb-text">
-                {review.reviewerDisplayName}
-              </p>
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-sb-card-blue">
+                  {review.reviewerAvatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={review.reviewerAvatarUrl}
+                      alt={review.reviewerDisplayName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-[12px] font-semibold text-sb-blue">
+                      {review.reviewerDisplayName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <p className="font-display text-[15px] font-semibold text-sb-text">
+                    {review.reviewerDisplayName}
+                  </p>
+                  <p className="text-[12px] text-sb-muted">
+                    {review.reviewsGivenCount} reseña{review.reviewsGivenCount === 1 ? "" : "s"} en SUPERBOB
+                  </p>
+                </div>
+              </div>
               <span aria-hidden="true" className="shrink-0 text-sb-orange">
                 {"★".repeat(review.rating)}
                 {"☆".repeat(5 - review.rating)}
               </span>
             </div>
-            <p className="mt-0.5 text-[13px] text-sb-muted">
+            <p className="mt-1.5 text-[13px] text-sb-muted">
               {review.tradeName} · {formatRelativeDate(review.publishedAt)}
             </p>
             {review.comment && (
