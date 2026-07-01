@@ -267,6 +267,7 @@ export const AdminProfessionalListParamsSchema = z.object({
   departmentId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   active: statusFilterSchema,
   verified: statusFilterSchema,
+  search: z.string().optional(),
   page: z.coerce.number().int().min(1).catch(1),
 });
 
@@ -279,9 +280,11 @@ export type AdminProfessionalListItem = {
   slug: string;
   fullName: string;
   primaryTradeName: string | null;
+  primaryDepartmentName: string | null;
   isActive: boolean;
   isVerified: boolean;
   createdAt: Date;
+  publishedReviewCount: number;
 };
 
 export type AdminProfessionalListResult = {
@@ -294,4 +297,112 @@ export type AdminProfessionalListResult = {
 
 export type UpdateProfessionalStatusActionState = {
   error?: string;
+};
+
+// ---------- Admin — Detalle de profesional ----------
+
+export type ProfessionalSanctionType =
+  | "warning"
+  | "temporary_suspension"
+  | "permanent_deactivation";
+
+export type ProfessionalSanctionRecord = {
+  id: string;
+  type: ProfessionalSanctionType;
+  reason: string;
+  notes: string | null;
+  imposedAt: Date;
+  expiresAt: Date | null;
+  liftedAt: Date | null;
+};
+
+export type AdminProfessionalDisputeRecord = {
+  id: string;
+  clientName: string;
+  tradeName: string | null;
+  status: string;
+  disputeResolution: string | null;
+  createdAt: Date;
+  disputeResolvedAt: Date | null;
+};
+
+export type ReviewModerationEventSummary = {
+  action: string;
+  reason: string;
+  adminName: string;
+  createdAt: Date;
+};
+
+export type AdminProfessionalPublishedReview = {
+  id: string;
+  rating: number;
+  comment: string | null;
+  reviewerName: string;
+  publishedAt: Date;
+  type: string;
+  tradeName: string;
+  suspendedAt: Date | null;
+  moderationEvents: ReviewModerationEventSummary[];
+};
+
+export type AdminProfessionalDetail = {
+  id: string;
+  slug: string;
+  fullName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  contactPhone: string | null;
+  isActive: boolean;
+  isVerified: boolean;
+  newProfessionalBoostUntil: Date | null;
+  createdAt: Date;
+  primaryTradeName: string | null;
+  primaryDepartmentName: string | null;
+  allTrades: string[];
+  departments: string[];
+  sanctions: ProfessionalSanctionRecord[];
+  activeSanction: ProfessionalSanctionRecord | null;
+  disputes: AdminProfessionalDisputeRecord[];
+  totalContacts: number;
+  activeWorkRecords: number;
+  publishedReviewCount: number;
+  publishedReviews: AdminProfessionalPublishedReview[];
+};
+
+export const CreateSanctionSchema = z.object({
+  professionalId: z.string().min(1),
+  type: z.enum(["warning", "temporary_suspension", "permanent_deactivation"]),
+  reason: z
+    .string()
+    .min(3, "Ingresá un motivo de al menos 3 caracteres")
+    .max(1000),
+  expiresAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida")
+    .optional(),
+  confirmName: z.string().optional(),
+}).refine(
+  (data) =>
+    data.type !== "temporary_suspension" ||
+    (data.expiresAt !== undefined && data.expiresAt.length > 0),
+  { message: "La fecha de vencimiento es requerida", path: ["expiresAt"] },
+);
+
+export type CreateSanctionInput = z.infer<typeof CreateSanctionSchema>;
+
+export type CreateSanctionActionState = {
+  error?: string;
+  success?: boolean;
+};
+
+export const SetBoostSchema = z.object({
+  professionalId: z.string().min(1),
+  boostUntil: z.string().optional(),
+});
+
+export type SetBoostInput = z.infer<typeof SetBoostSchema>;
+
+export type SetBoostActionState = {
+  error?: string;
+  success?: boolean;
 };

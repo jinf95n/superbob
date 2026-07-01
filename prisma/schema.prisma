@@ -45,19 +45,20 @@ model User {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 
-  province            Province?            @relation(fields: [provinceId], references: [id])
-  department          Department?          @relation(fields: [departmentId], references: [id])
-  professionalProfile ProfessionalProfile?
-  workRecords         WorkRecord[]
-  reviewsWritten      Review[]             @relation("ReviewWriter")
-  clientRatings       ClientRating[]
-  contactEvents       ContactEvent[]
-  whatsappMessages    WhatsappMessage[]
-  notifications       Notification[]
-  reportsFiled        Report[]             @relation("ReportFiler")
-  reportsReceived     Report[]             @relation("ReportedUser")
-  sessions            Session[]
-  accounts            Account[]
+  province               Province?            @relation(fields: [provinceId], references: [id])
+  department             Department?          @relation(fields: [departmentId], references: [id])
+  professionalProfile    ProfessionalProfile?
+  workRecords            WorkRecord[]
+  reviewsWritten         Review[]             @relation("ReviewWriter")
+  clientRatings          ClientRating[]
+  contactEvents          ContactEvent[]
+  whatsappMessages       WhatsappMessage[]
+  notifications          Notification[]
+  reportsFiled           Report[]             @relation("ReportFiler")
+  reportsReceived        Report[]             @relation("ReportedUser")
+  reviewModerationEvents ReviewModerationEvent[] @relation("ReviewModerator")
+  sessions               Session[]
+  accounts               Account[]
 
   @@map("users")
 }
@@ -323,15 +324,34 @@ model Review {
   responseEditableUntil  DateTime?  @map("response_editable_until")
   createdAt              DateTime   @default(now()) @map("created_at")
 
-  workRecord           WorkRecord          @relation(fields: [workRecordId], references: [id])
-  reviewer             User                @relation("ReviewWriter", fields: [reviewerId], references: [id])
-  reviewedProfessional ProfessionalProfile @relation("ReviewedProfessional", fields: [reviewedProfessionalId], references: [id])
-  trade                Trade               @relation(fields: [tradeId], references: [id])
+  workRecord           WorkRecord              @relation(fields: [workRecordId], references: [id])
+  reviewer             User                    @relation("ReviewWriter", fields: [reviewerId], references: [id])
+  reviewedProfessional ProfessionalProfile     @relation("ReviewedProfessional", fields: [reviewedProfessionalId], references: [id])
+  trade                Trade                   @relation(fields: [tradeId], references: [id])
+  moderationEvents     ReviewModerationEvent[]
 
   @@index([reviewedProfessionalId])
   @@index([publishedAt])
   @@index([tradeId])
   @@map("reviews")
+}
+
+// ---------- Moderación de reseñas ----------
+
+model ReviewModerationEvent {
+  id        String   @id @default(uuid())
+  reviewId  String   @map("review_id")
+  adminId   String   @map("admin_id")
+  // CHECK (action IN ('suspend', 'unsuspend', 'delete')) — agregar en la migración SQL.
+  action    String
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  review Review @relation(fields: [reviewId], references: [id])
+  admin  User   @relation("ReviewModerator", fields: [adminId], references: [id])
+
+  @@index([reviewId])
+  @@map("review_moderation_events")
 }
 
 model ClientRating {

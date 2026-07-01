@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getProfessionalProfileIdByUserId } from "@/modules/professionals/queries";
+import { getUnreadNotificationCount } from "@/modules/notifications/queries";
 import { Header } from "@/components/layout/Header";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { AppSidebar } from "@/components/layout/AppSidebar";
@@ -18,12 +19,13 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [user, professionalId] = await Promise.all([
+  const [user, professionalId, unreadCount] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
       select: { deletedAt: true },
     }),
     getProfessionalProfileIdByUserId(session.user.id),
+    getUnreadNotificationCount(session.user.id),
   ]);
 
   // Safety net: la cuenta puede haber sido eliminada mientras la cookie seguía activa.
@@ -39,12 +41,12 @@ export default async function AppLayout({
         <Header />
       </div>
       <div className="flex flex-1 sm:overflow-hidden">
-        <AppSidebar hasProfessionalProfile={hasProfessionalProfile} />
+        <AppSidebar hasProfessionalProfile={hasProfessionalProfile} unreadNotificationCount={unreadCount} />
         <main className="min-w-0 flex-1 pb-16 sm:overflow-y-auto sm:pb-0">
           {children}
         </main>
       </div>
-      <BottomNav hasProfessionalProfile={hasProfessionalProfile} />
+      <BottomNav hasProfessionalProfile={hasProfessionalProfile} unreadNotificationCount={unreadCount} />
     </div>
   );
 }

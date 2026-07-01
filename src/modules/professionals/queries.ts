@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getWeightedScores } from "@/modules/reviews/queries";
 import {
+  AdminProfessionalDetail,
   AdminProfessionalListItem,
   AdminProfessionalListParams,
   AdminProfessionalListResult,
@@ -13,6 +14,7 @@ import {
   ProfessionalFullProfile,
   ProfessionalProfileForEdit,
   ProfessionalReviewForProfile,
+  ProfessionalSanctionType,
   ProfessionalTradeForProfile,
   ProfileCompleteness,
   ProfileCompletenessLevel,
@@ -34,6 +36,17 @@ const PROFILE_SCORE_POINTS = {
   fiveReviews: 10,
 };
 
+// Devuelve el filtro Prisma para sanciones activas (suspensión temporal o
+// desactivación permanente, no levantadas, no vencidas). Se llama en runtime
+// para que new Date() sea el momento de la consulta, no del import.
+function buildActiveSanctionFilter(): Prisma.ProfessionalSanctionWhereInput {
+  return {
+    liftedAt: null,
+    type: { in: ["temporary_suspension", "permanent_deactivation"] },
+    OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+  };
+}
+
 /**
  * Todos los profesionales activos, sin filtrar ni paginar: el filtrado por
  * texto y por los filtros del panel se hace 100% en memoria en el cliente
@@ -43,7 +56,10 @@ export async function getAllProfessionalsForSearch(): Promise<
   SearchableProfessional[]
 > {
   const professionals = await prisma.professionalProfile.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      NOT: { sanctions: { some: buildActiveSanctionFilter() } },
+    },
     select: {
       id: true,
       slug: true,
@@ -221,6 +237,7 @@ async function getRankedProfessionalsWithPublishedReviews(
     where: {
       isActive: true,
       reviewsReceived: { some: { publishedAt: { not: null } } },
+      NOT: { sanctions: { some: buildActiveSanctionFilter() } },
     },
     select: {
       id: true,
@@ -422,7 +439,7 @@ export async function getProfessionalProfileBySlug(
         select: { id: true, url: true, thumbnailUrl: true, caption: true },
       },
       reviewsReceived: {
-        where: { publishedAt: { not: null } },
+        where: { publishedAt: { not: null }, suspendedAt: null, deletedAt: null },
         orderBy: { publishedAt: "desc" },
         take: MAX_PROFILE_REVIEWS_LOADED,
         select: {
@@ -435,10 +452,15 @@ export async function getProfessionalProfileBySlug(
           trade: { select: { name: true } },
         },
       },
+      sanctions: {
+        where: buildActiveSanctionFilter(),
+        select: { id: true },
+        take: 1,
+      },
     },
   });
 
-  if (!professional || !professional.isActive) {
+  if (!professional || !professional.isActive || professional.sanctions.length > 0) {
     return null;
   }
 
@@ -446,6 +468,8 @@ export async function getProfessionalProfileBySlug(
   const publishedReviewsWhere = {
     reviewedProfessionalId: professional.id,
     publishedAt: { not: null },
+    suspendedAt: null as null,
+    deletedAt: null as null,
   };
 
   // Las 6 queries de abajo son independientes entre sí (todas solo dependen
@@ -492,6 +516,7 @@ export async function getProfessionalProfileBySlug(
           where: {
             reviewerId: { in: reviewerIds },
             publishedAt: { not: null },
+            suspendedAt: null,
             deletedAt: null,
           },
           _count: { _all: true },
@@ -1147,7 +1172,14 @@ const ADMIN_PROFESSIONALS_PAGE_SIZE = 20;
 export async function getProfessionalsForAdmin(
   params: AdminProfessionalListParams,
 ): Promise<AdminProfessionalListResult> {
+  const searchTerm = params.search?.trim();
+
   const where: Prisma.ProfessionalProfileWhereInput = {
+    ...(searchTerm && {
+      user: {
+        fullName: { contains: searchTerm, mode: "insensitive" as const },
+      },
+    }),
     ...(params.tradeId && {
       professionalTrades: { some: { tradeId: params.tradeId } },
     }),
@@ -1177,6 +1209,7 @@ export async function getProfessionalsForAdmin(
       isVerified: true,
       createdAt: true,
       user: { select: { fullName: true } },
+      primaryDepartment: { select: { name: true } },
       professionalTrades: {
         where: { isPrimary: true },
         select: { trade: { select: { name: true } } },
@@ -1185,15 +1218,37 @@ export async function getProfessionalsForAdmin(
     },
   });
 
-  const professionals: AdminProfessionalListItem[] = rows.map((row) => ({
-    id: row.id,
-    slug: row.slug,
-    fullName: row.user.fullName,
-    primaryTradeName: row.professionalTrades[0]?.trade.name ?? null,
-    isActive: row.isActive,
-    isVerified: row.isVerified,
-    createdAt: row.createdAt,
-  }));
+  const professionals: AdminProfessionalListItem[] = [];
+
+  if (rows.length > 0) {
+    const professionalIds = rows.map((row) => row.id);
+    const reviewCountRows = await prisma.review.groupBy({
+      by: ["reviewedProfessionalId"],
+      where: {
+        reviewedProfessionalId: { in: professionalIds },
+        publishedAt: { not: null },
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    });
+    const reviewCountMap = new Map(
+      reviewCountRows.map((row) => [row.reviewedProfessionalId, row._count._all]),
+    );
+
+    for (const row of rows) {
+      professionals.push({
+        id: row.id,
+        slug: row.slug,
+        fullName: row.user.fullName,
+        primaryTradeName: row.professionalTrades[0]?.trade.name ?? null,
+        primaryDepartmentName: row.primaryDepartment?.name ?? null,
+        isActive: row.isActive,
+        isVerified: row.isVerified,
+        createdAt: row.createdAt,
+        publishedReviewCount: reviewCountMap.get(row.id) ?? 0,
+      });
+    }
+  }
 
   return {
     professionals,
@@ -1201,6 +1256,182 @@ export async function getProfessionalsForAdmin(
     page,
     pageSize: ADMIN_PROFESSIONALS_PAGE_SIZE,
     totalPages,
+  };
+}
+
+export async function getProfessionalForAdminDetail(
+  id: string,
+): Promise<AdminProfessionalDetail | null> {
+  const professional = await prisma.professionalProfile.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      slug: true,
+      bio: true,
+      contactPhone: true,
+      isActive: true,
+      isVerified: true,
+      newProfessionalBoostUntil: true,
+      createdAt: true,
+      user: { select: { fullName: true, avatarUrl: true } },
+      primaryDepartment: { select: { name: true } },
+      professionalTrades: {
+        select: {
+          isPrimary: true,
+          trade: { select: { name: true } },
+        },
+      },
+      coverageAreas: {
+        select: { department: { select: { name: true } } },
+      },
+      sanctions: {
+        orderBy: { imposedAt: "desc" },
+        select: {
+          id: true,
+          type: true,
+          reason: true,
+          notes: true,
+          imposedAt: true,
+          expiresAt: true,
+          liftedAt: true,
+        },
+      },
+    },
+  });
+
+  if (!professional) return null;
+
+  const now = new Date();
+
+  const [disputes, totalContacts, activeWorkRecords, publishedReviews] =
+    await Promise.all([
+      prisma.workRecord.findMany({
+        where: {
+          professionalId: id,
+          OR: [{ status: "disputed" }, { disputeResolution: { not: null } }],
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          status: true,
+          disputeResolution: true,
+          createdAt: true,
+          disputeResolvedAt: true,
+          client: { select: { fullName: true } },
+          trade: { select: { name: true } },
+        },
+      }),
+      prisma.contactEvent.count({ where: { professionalId: id } }),
+      prisma.workRecord.count({
+        where: { professionalId: id, status: { not: "cancelled" } },
+      }),
+      prisma.review.findMany({
+        where: {
+          reviewedProfessionalId: id,
+          publishedAt: { not: null },
+          deletedAt: null,
+        },
+        orderBy: { publishedAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          type: true,
+          rating: true,
+          comment: true,
+          publishedAt: true,
+          suspendedAt: true,
+          reviewer: { select: { fullName: true } },
+          trade: { select: { name: true } },
+          moderationEvents: {
+            orderBy: { createdAt: "asc" },
+            select: {
+              action: true,
+              reason: true,
+              createdAt: true,
+              admin: { select: { fullName: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+  const activeSanction =
+    professional.sanctions.find((s) => {
+      if (s.liftedAt) return false;
+      if (s.type === "permanent_deactivation") return true;
+      if (s.type === "temporary_suspension" && s.expiresAt && s.expiresAt > now)
+        return true;
+      return false;
+    }) ?? null;
+
+  return {
+    id: professional.id,
+    slug: professional.slug,
+    fullName: professional.user.fullName,
+    avatarUrl: professional.user.avatarUrl,
+    bio: professional.bio,
+    contactPhone: professional.contactPhone,
+    isActive: professional.isActive,
+    isVerified: professional.isVerified,
+    newProfessionalBoostUntil: professional.newProfessionalBoostUntil,
+    createdAt: professional.createdAt,
+    primaryTradeName:
+      professional.professionalTrades.find((pt) => pt.isPrimary)?.trade.name ??
+      null,
+    primaryDepartmentName:
+      professional.primaryDepartment?.name ??
+      professional.coverageAreas[0]?.department.name ??
+      null,
+    allTrades: professional.professionalTrades.map((pt) => pt.trade.name),
+    departments: professional.coverageAreas.map((ca) => ca.department.name),
+    sanctions: professional.sanctions.map((s) => ({
+      id: s.id,
+      type: s.type as ProfessionalSanctionType,
+      reason: s.reason,
+      notes: s.notes,
+      imposedAt: s.imposedAt,
+      expiresAt: s.expiresAt,
+      liftedAt: s.liftedAt,
+    })),
+    activeSanction: activeSanction
+      ? {
+          id: activeSanction.id,
+          type: activeSanction.type as ProfessionalSanctionType,
+          reason: activeSanction.reason,
+          notes: activeSanction.notes,
+          imposedAt: activeSanction.imposedAt,
+          expiresAt: activeSanction.expiresAt,
+          liftedAt: activeSanction.liftedAt,
+        }
+      : null,
+    disputes: disputes.map((d) => ({
+      id: d.id,
+      clientName: d.client.fullName,
+      tradeName: d.trade.name,
+      status: d.status,
+      disputeResolution: d.disputeResolution,
+      createdAt: d.createdAt,
+      disputeResolvedAt: d.disputeResolvedAt,
+    })),
+    totalContacts,
+    activeWorkRecords,
+    publishedReviewCount: publishedReviews.filter((r) => !r.suspendedAt).length,
+    publishedReviews: publishedReviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      reviewerName: r.reviewer.fullName,
+      publishedAt: r.publishedAt as Date,
+      type: r.type,
+      tradeName: r.trade.name,
+      suspendedAt: r.suspendedAt,
+      moderationEvents: r.moderationEvents.map((e) => ({
+        action: e.action,
+        reason: e.reason,
+        adminName: e.admin.fullName,
+        createdAt: e.createdAt,
+      })),
+    })),
   };
 }
 

@@ -4,7 +4,6 @@ import { AdminProfessionalListParamsSchema } from "@/modules/professionals/types
 import { getActiveTradesForFilter } from "@/modules/trades/queries";
 import { getDepartmentsForFilter } from "@/modules/geography/queries";
 import { Badge } from "@/components/ui/Badge";
-import { ProfessionalStatusToggle } from "./ProfessionalStatusToggle";
 
 type AdminProfessionalsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -21,6 +20,8 @@ export default async function AdminProfessionalsPage({
         ? rawParams.departmentId
         : undefined,
     active: typeof rawParams.active === "string" ? rawParams.active : undefined,
+    verified: typeof rawParams.verified === "string" ? rawParams.verified : undefined,
+    search: typeof rawParams.search === "string" ? rawParams.search : undefined,
     page: typeof rawParams.page === "string" ? rawParams.page : undefined,
   });
 
@@ -32,20 +33,28 @@ export default async function AdminProfessionalsPage({
 
   const buildPageHref = (page: number) => {
     const params = new URLSearchParams();
+    if (parsed.search) params.set("search", parsed.search);
     if (parsed.tradeId) params.set("tradeId", parsed.tradeId);
     if (parsed.departmentId) params.set("departmentId", parsed.departmentId);
     if (parsed.active) params.set("active", parsed.active);
+    if (parsed.verified) params.set("verified", parsed.verified);
     params.set("page", String(page));
     return `/admin/professionals?${params.toString()}`;
   };
 
   return (
     <div>
-      <h1 className="font-display text-[20px] font-semibold">
-        Profesionales
-      </h1>
+      <h1 className="font-display text-[20px] font-semibold">Profesionales</h1>
 
       <form className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap" method="get">
+        <input
+          type="text"
+          name="search"
+          defaultValue={parsed.search ?? ""}
+          placeholder="Buscar por nombre..."
+          className="w-full rounded border border-sb-border px-3 py-2 text-sm sm:w-64 dark:border-sb-border-dark"
+        />
+
         <select
           name="tradeId"
           defaultValue={parsed.tradeId ?? ""}
@@ -81,9 +90,19 @@ export default async function AdminProfessionalsPage({
           defaultValue={parsed.active ?? ""}
           className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
         >
-          <option value="">Activo: todos</option>
+          <option value="">Estado: todos</option>
           <option value="yes">Activos</option>
           <option value="no">Inactivos</option>
+        </select>
+
+        <select
+          name="verified"
+          defaultValue={parsed.verified ?? ""}
+          className="rounded border border-sb-border px-3 py-2 dark:border-sb-border-dark"
+        >
+          <option value="">Verificación: todos</option>
+          <option value="yes">Verificados</option>
+          <option value="no">Sin verificar</option>
         </select>
 
         <button
@@ -106,14 +125,21 @@ export default async function AdminProfessionalsPage({
           >
             <div>
               <Link
-                href={`/p/${professional.slug}`}
+                href={`/admin/professionals/${professional.id}`}
                 className="font-medium text-sb-blue underline"
               >
                 {professional.fullName}
               </Link>
               <p className="text-sm text-sb-muted dark:text-sb-muted-dark">
-                {professional.primaryTradeName ?? "Sin oficio principal"} ·
+                {[professional.primaryTradeName, professional.primaryDepartmentName]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              <p className="text-sm text-sb-muted dark:text-sb-muted-dark">
                 Registrado el {professional.createdAt.toLocaleDateString("es-AR")}
+                {professional.publishedReviewCount > 0
+                  ? ` · ${professional.publishedReviewCount} reseña${professional.publishedReviewCount === 1 ? "" : "s"}`
+                  : ""}
               </p>
               <div className="mt-1 flex gap-2">
                 {professional.isActive ? (
@@ -127,11 +153,12 @@ export default async function AdminProfessionalsPage({
               </div>
             </div>
 
-            <ProfessionalStatusToggle
-              professionalId={professional.id}
-              isActive={professional.isActive}
-              isVerified={professional.isVerified}
-            />
+            <Link
+              href={`/admin/professionals/${professional.id}`}
+              className="text-sm text-sb-blue hover:underline sm:shrink-0"
+            >
+              Ver detalle →
+            </Link>
           </div>
         ))}
       </div>
