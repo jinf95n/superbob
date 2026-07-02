@@ -243,6 +243,7 @@ export async function getPendingContactReviewsForClient(
       clientId: userId,
       createdAt: { lte: minAgo, gte: maxAgo },
       workRecords: { none: { status: { not: "cancelled" } } },
+      NOT: { workRecords: { some: { reviews: { some: { reviewerId: userId } } } } },
     },
     orderBy: { createdAt: "desc" },
     select: {
@@ -508,6 +509,7 @@ export async function getPendingContactReviewsForClientCount(userId: string): Pr
       clientId: userId,
       createdAt: { lte: minAgo, gte: maxAgo },
       workRecords: { none: { status: { not: "cancelled" } } },
+      NOT: { workRecords: { some: { reviews: { some: { reviewerId: userId } } } } },
     },
   });
 }
