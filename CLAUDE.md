@@ -536,14 +536,19 @@ con `status='completed'`, cerrando permanentemente la ventana para work_review.
 | `submitContactReviewAction` | Cliente (phone verified) | Review de contacto; publica inmediato |
 | `resolveDisputeAction` | Admin | Resuelve disputa: `work_confirmed` \| `claim_rejected` \| `unresolved` |
 
-### UI pendiente para próxima sesión
+### Rutas implementadas del flujo de reseñas
 
-Las siguientes pantallas tienen lógica de backend implementada pero **no tienen UI todavía**:
+Todas las pantallas del flujo están implementadas:
 
-- **Cliente — iniciar reclamo**: formulario para `createClientClaimAction` (seleccionar contact_event + oficio). Ruta sugerida: `/reviews/claim/[contactEventId]`.
-- **Profesional — responder reclamo**: pantalla para `respondToWorkRecordAction` con opciones "Confirmar" / "Disputar". Ruta sugerida: `/professional/work-records/[workRecordId]`.
-- **Admin — resolver disputa**: vista con contexto del par (historial de disputas de ambas partes via `getDisputeContextForAdmin`) y botones para las 3 resoluciones posibles. Ruta sugerida: `/admin/disputes/[workRecordId]`.
-- **Cliente — contact_review**: formulario para `submitContactReviewAction` para contact_events elegibles (via `getPendingContactReviewsForClient`).
+| Pantalla | Ruta |
+|---|---|
+| Cliente — lista de contact_reviews pendientes | `/reviews/contact/page.tsx` |
+| Cliente — formulario contact_review | `/reviews/contact/[contactEventId]/page.tsx` |
+| Cliente — lista de reclamos iniciables | `/reviews/claim/page.tsx` |
+| Cliente — formulario iniciar reclamo | `/reviews/claim/[contactEventId]/page.tsx` |
+| Profesional — responder reclamo | `/professional/work-records/[workRecordId]/page.tsx` |
+| Admin — lista de disputas | `/admin/disputes/page.tsx` |
+| Admin — resolver disputa | `/admin/disputes/[workRecordId]/page.tsx` |
 
 ---
 
