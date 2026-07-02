@@ -5,10 +5,27 @@ import { nextCookies } from "better-auth/next-js";
 import { prisma } from "@/lib/prisma";
 import { resend } from "@/lib/resend";
 
+// Incluye siempre localhost para dev, y tanto www como non-www del dominio de producción.
+// Se deriva de NEXT_PUBLIC_APP_URL para no hardcodear el dominio en el código.
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+const trustedOrigins = ["http://localhost:3000"];
+if (appUrl) {
+  trustedOrigins.push(appUrl);
+  if (appUrl.includes("://www.")) {
+    trustedOrigins.push(appUrl.replace("://www.", "://"));
+  } else {
+    try {
+      const parsed = new URL(appUrl);
+      trustedOrigins.push(`${parsed.protocol}//www.${parsed.host}`);
+    } catch {}
+  }
+}
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins,
   user: {
     fields: {
       name: "fullName",
