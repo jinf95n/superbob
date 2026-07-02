@@ -88,7 +88,7 @@ export function UserMenu({
           )}
         </button>
         {!isOpen && unreadNotificationCount > 0 && (
-          <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-sb-error ring-2 ring-white" />
+          <span className="pointer-events-none absolute right-0 top-0 z-10 h-3 w-3 translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-sb-error" />
         )}
       </span>
 
